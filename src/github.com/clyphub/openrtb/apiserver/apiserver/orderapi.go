@@ -11,57 +11,64 @@ import (
 var ORDERPATH = "/order/order"
 var RFPPATH = "/order/rfp"
 
-type RfpAPIResponder struct {
-	MethodDispatcher
+type APIResponder struct {
+	BaseResponder
+	method string
+	path string
+	store *store.Store
 }
 
-func (r *RfpAPIResponder) Init(srvr *Server, resp *Router, store *store.Store) {
-	resp.register(RFPPATH, r)
-	r.sink = r
+func (r *APIResponder) Init(srvr *Server, store *store.Store) {
+	r.store = store
+	srvr.register(r.method, r.path, r)
+}
+
+func (r *APIResponder) getRequestObject() interface{} {
+	return nil
+}
+
+func (r *APIResponder) validateRequest(msg interface{}) error {
+	return nil
+}
+
+func (r *APIResponder) processRequest(req interface{}) (resp interface{}, err error){
+	return nil,nil
+}
+
+type RfpAPIResponder struct {
+	APIResponder
+}
+
+func NewRfpAPIResponder() *RfpAPIResponder {
+	var r RfpAPIResponder
+	r.path = RFPPATH
+	r.method = "POST"
+	return &r
 }
 
 type OrderAPIResponder struct {
-	MethodDispatcher
+	APIResponder
 }
 
-func (r *OrderAPIResponder) Init(srvr *Server, resp *Router, store *store.Store) {
-	resp.register(ORDERPATH, r)
-	r.sink = r
+func NewOrderAPIResponder() *OrderAPIResponder {
+	var r OrderAPIResponder
+	r.path = ORDERPATH
+	r.method = "POST"
+	return &r
 }
 
-func (r *RfpAPIResponder) HandlePost(req *http.Request) (status int, body []byte)  {
-
-	// Read the request body
-	var buffer []byte
-	var code int
-	var e error
-	buffer, code = r.readBody(req)
-	if (code != http.StatusOK) {
-		return code, nil
-	}
-
-	// Now let's unmarshal the actual API request and get some work done
-	//	First we need to guess the type of object
-	var response interface{}
+func (r *RfpAPIResponder) getRequestObject() interface{} {
 	var obj objects.RFPObject
-	e = json.Unmarshal(buffer, &obj)
-	if (e != nil) {
-		log.Printf("Error unmarshalling request body (%s) error=%s",buffer,e.Error())
-		return http.StatusInternalServerError, nil
-	}
-	e = r.validateRfpRequest(obj)
-	if(e != nil){
-		log.Printf("Invalid RFP: %s\n", e.Error())
-		return 400, nil
-	}
-	response, e = r.processRfpRequest(obj)
-
-	// Marshal the results into the response body
-	code,buffer = r.marshal(response)
-	return code, buffer
+	return obj
 }
 
-func (r *OrderAPIResponder) HandlePost(req *http.Request) (status int, body []byte)  {
+func (r *OrderAPIResponder) getRequestObject() interface{} {
+	var obj objects.OrderObject
+	return obj
+}
+
+
+func (r *APIResponder) Handle(req *http.Request) (status int, body []byte)  {
 
 	// Read the request body
 	var buffer []byte
@@ -75,57 +82,46 @@ func (r *OrderAPIResponder) HandlePost(req *http.Request) (status int, body []by
 	// Now let's unmarshal the actual API request and get some work done
 	//	First we need to guess the type of object
 	var response interface{}
-	var obj objects.OrderObject
+	var obj = r.getRequestObject()
 	e = json.Unmarshal(buffer, &obj)
 	if (e != nil) {
 		log.Printf("Error unmarshalling request body (%s) error=%s",buffer,e.Error())
 		return http.StatusInternalServerError, nil
 	}
-	e = r.validateOrderRequest(obj)
+	e = r.validateRequest(obj)
 	if(e != nil){
-		log.Printf("Invalid Order: %s\n", e.Error())
+		log.Printf("Invalid request object: %s\n", e.Error())
 		return 400, nil
 	}
-	response, e = r.processOrderRequest(obj)
+	response, e = r.processRequest(obj)
 
 	// Marshal the results into the response body
 	code,buffer = r.marshal(response)
 	return code, buffer
 }
 
-func (r *RfpAPIResponder) validateRfpRequest(rfp objects.RFPObject) error {
+func (r *RfpAPIResponder) validateRequest(rfp interface{}) error {
+	robj := rfp.(objects.RFPObject)
+	if(len(robj.BuyerId) == 0){
+
+	}
 	return nil
 }
 
-func (r *OrderAPIResponder) validateOrderRequest(order objects.OrderObject) error {
+func (r *OrderAPIResponder) validateRequest(order interface{}) error {
 	return nil
 }
 
-func (r *RfpAPIResponder) processRfpRequest(rfp objects.RFPObject) (resp objects.ProposalObject, err error){
+func (r *RfpAPIResponder) processRequest(rfp interface{}) (resp interface{}, err error){
 	var obj objects.ProposalObject
 	return obj,nil
 }
 
 
-func (r *OrderAPIResponder) processOrderRequest(order objects.OrderObject) (resp objects.AcceptanceObject, err error){
+func (r *OrderAPIResponder) processRequest(order interface{}) (resp interface{}, err error){
 	var obj objects.AcceptanceObject
 	return obj,nil
 }
 
-func (r *OrderAPIResponder) HandleGet(req *http.Request) (status int, body []byte) {
 
-	return http.StatusOK, nil
-}
-
-func (r *RfpAPIResponder) HandleGet(req *http.Request) (status int, body []byte) {
-	return http.StatusOK, nil
-}
-
-func (r *RfpAPIResponder) HandlePut(req *http.Request) (status int, body []byte) {
-	return http.StatusOK, nil
-}
-
-func (r *OrderAPIResponder) HandlePut(req *http.Request) (status int, body []byte) {
-	return http.StatusOK, nil
-}
 

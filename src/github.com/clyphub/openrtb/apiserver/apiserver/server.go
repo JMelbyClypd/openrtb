@@ -3,7 +3,6 @@ package apiserver
 import (
 	"encoding/json"
 	"github.com/clyphub/openrtb/apiserver/store"
-	"io"
 	"io/ioutil"
 	"log"
 	"net"
@@ -18,22 +17,44 @@ const BYE_MSG = "Buh-bye"
 Wrapper for dispatcher/mux
  */
 type Router struct {
+	routes    []*route
+}
+
+type route struct {
+	method string
+	path string
+	handler MethodHandler
 }
 
 type Server struct {
-	router   *Router
+	Router
 	listener net.Listener
 	store *store.Store
 }
 
+func NewServer() *Server {
+	srvr := new(Server)
+	s := new(store.Store)
+	srvr.store = s
+	return srvr
+}
+
+type MethodHandler interface {
+	Handle(req *http.Request) (status int, body []byte)
+}
+
 type Responder interface {
-	http.Handler
-	Init(srvr *Server, router *Router, store *store.Store)
+	MethodHandler
+	Init(srvr *Server, store *store.Store)
 }
 
 func (s *Server) Init() {
-	s.store = new(store.Store)
-	s.router = newRouter(s)
+	http.DefaultServeMux.Handle("/", s)
+	mr := new(MsgResponder)
+	mr.Init(s, s.store)
+
+	sr := new(Downer)
+	sr.Init(s, s.store)
 }
 
 func (s *Server) Open(laddr string) {
@@ -53,59 +74,58 @@ func (s *Server) Close() {
 	}
 }
 
-func (r *Router) register(path string, handler http.Handler) {
-	http.DefaultServeMux.Handle(path, handler)
+func (r *Router) register(method string, path string, handler MethodHandler) {
+	route := newRoute(method, path, handler)
+	r.routes = append(r.routes, route)
 }
 
-func newRouter(srvr *Server) *Router {
-	r := new(Router)
-	mr := new(MsgResponder)
-	mr.Init(srvr, r, srvr.store)
+func newRoute(method string, path string, handler MethodHandler) *route {
+	r := route{method, path, handler}
+	return &r
+}
 
-	sr := new(Downer)
-	sr.Init(srvr, r, srvr.store)
+func (r *Router) resolveHandler(method string, path string) MethodHandler {
+	for _, route := range r.routes {
+		ok := route.match(method, path)
+		if ok {
+			return route.handler
+		}
+	}
+	return nil
+}
 
-	return r
+func (r route) match(method string, path string) bool {
+	if(len(method) == 0){
+		return false
+	}
+	if(method != r.method){
+		return false
+	}
+	if(path != r.path){
+		return false
+	}
+	return true
 }
 
 func (srvr *Server) AddResponder(responder Responder){
-	responder.Init(srvr, srvr.router, srvr.store)
+	responder.Init(srvr,  srvr.store)
 }
 
-type MethodHandler interface {
-	HandleGet(req *http.Request) (status int, body []byte)
-	HandlePut(req *http.Request) (status int, body []byte)
-	HandlePost(req *http.Request) (status int, body []byte)
-	HandleDelete(req *http.Request) (status int, body []byte)
-	HandleBadMethod(req *http.Request) (status int, body []byte)
-}
-
-type MethodDispatcher struct {
-	sink MethodHandler
-}
-
-func (r *MethodDispatcher) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	log.Println("ServeHTTP entered")
 	method := req.Method
+	path := req.URL.Path
 
 	status := http.StatusBadRequest
 	var body []byte
 
-	switch {
-	case method == "POST": {
-		status,body = r.sink.HandlePost(req)
+	sink := r.resolveHandler(method, path)
+	if(sink == nil){
+		status,body = r.HandleBadMethod(req)
+	} else {
+		status,body = sink.Handle(req)
 	}
-	case method == "GET": {
-		status,body = r.sink.HandleGet(req)
-	}
-	case method == "DELETE": {
-		status,body = r.sink.HandleDelete(req)
-	}
-	case method == "PUT": {
-		status,body = r.sink.HandleBadMethod(req)
-	}
-	default:status,body = r.sink.HandleBadMethod(req)
-	}
+
 	log.Println("Writing response")
 	err := writeResponse(w, req, status, body)
 	if (err != nil) {
@@ -122,21 +142,21 @@ func writeResponse(w http.ResponseWriter, req *http.Request, status int, body []
 	return nil
 }
 
-func (r *MethodDispatcher) HandleGet(req *http.Request) (status int, body []byte) {
+type BaseResponder struct {
+
+}
+
+func (r *BaseResponder) Handle(req *http.Request) (status int, body []byte) {
 
 	return http.StatusOK, nil
 }
 
-func (r *MethodDispatcher) HandleDelete(req *http.Request) (status int, body []byte) {
 
-	return http.StatusOK, nil
-}
-
-func (r *MethodDispatcher) HandleBadMethod(req *http.Request) (status int, body []byte)  {
+func (r *Router) HandleBadMethod(req *http.Request) (status int, body []byte)  {
 	return http.StatusMethodNotAllowed, nil
 }
 
-func (r *MethodDispatcher) readBody(req *http.Request) (b []byte, code int){
+func (r *BaseResponder) readBody(req *http.Request) (b []byte, code int){
 	var buffer []byte
 	var e error
 	buffer, e = ioutil.ReadAll(req.Body)
@@ -147,7 +167,7 @@ func (r *MethodDispatcher) readBody(req *http.Request) (b []byte, code int){
 	return buffer, http.StatusOK
 }
 
-func (r *MethodDispatcher) marshal(response interface{}) (status int, body []byte){
+func (r *BaseResponder) marshal(response interface{}) (status int, body []byte){
 	// Marshal the results into the response body
 	var buffer []byte
 	var e error
@@ -161,42 +181,33 @@ func (r *MethodDispatcher) marshal(response interface{}) (status int, body []byt
 
 type MsgResponder struct {
 	s string
-	MethodDispatcher
+	BaseResponder
 }
 
-func (r *MsgResponder) Init(srvr *Server, resp *Router, store *store.Store) {
+func (r *MsgResponder) Init(srvr *Server, store *store.Store) {
 	r.s = MSG
-	resp.register("/", r)
-	r.sink = r
+	srvr.register("GET", "/", r)
 	log.Printf("MsgResponder initialized, msg=%s", r.s)
 }
 
-func (r *MsgResponder) HandleGet(req *http.Request) (status int, body []byte) {
-	log.Println("MsgResponder.HandleGet")
-	return http.StatusOK, []byte(r.s)
-}
-
-func (r *MsgResponder) HandlePost(req *http.Request) (status int, body []byte) {
-	log.Println("MsgResponder.HandlePost")
-	return http.StatusOK, []byte(r.s)
-}
-
-func (r *MsgResponder) HandlePut(req *http.Request) (status int, body []byte) {
-	log.Println("MsgResponder.HandlePut")
+func (r *MsgResponder) Handle(req *http.Request) (status int, body []byte) {
+	log.Println("MsgResponder.Handle")
 	return http.StatusOK, []byte(r.s)
 }
 
 
 type Downer struct {
 	server *Server
+	BaseResponder
 }
 
-func (r *Downer) Init(srvr *Server, resp *Router, store *store.Store) {
+func (r *Downer) Init(srvr *Server, store *store.Store) {
 	r.server = srvr
-	resp.register(BYE_PATH, r)
+	srvr.register("GET", BYE_PATH, r)
 }
 
-func (r *Downer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+func (r *Downer) Handle(req *http.Request) (status int, body []byte) {
+	log.Println("Downer.Handle")
 	r.server.Close()
-	io.WriteString(w, BYE_MSG)
+	return http.StatusOK, []byte(BYE_MSG)
 }

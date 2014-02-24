@@ -15,9 +15,9 @@ func init() {
 }
 
 func main() {
-	server := new(apiserver.Server)
+	server := apiserver.NewServer()
 	server.Init()
-	server.AddResponder(new(apiserver.OrderAPIResponder))
-	server.AddResponder(new(apiserver.RfpAPIResponder))
+	server.AddResponder(apiserver.NewOrderAPIResponder())
+	server.AddResponder(apiserver.NewRfpAPIResponder())
 	server.Open(address)
 }
