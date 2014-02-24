@@ -1,3 +1,10 @@
+/*
+Copyright 2014 clypd, inc.  All rights reserved.
+
+Author: J. Melby
+
+Description: Tests for apiserver package
+ */
 package apiserver
 
 import (

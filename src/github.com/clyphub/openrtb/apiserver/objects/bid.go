@@ -1,3 +1,10 @@
+/*
+Copyright 2014 clypd, inc.  All rights reserved.
+
+Author: J. Melby
+
+Description: Data objects for Programmatic TV API test service
+ */
 package objects
 
 import (

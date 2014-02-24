@@ -1,3 +1,11 @@
+/*
+Copyright 2014 clypd, inc.  All rights reserved.
+
+Author: J. Melby
+
+Description: main package for Programmatic TV API test service
+
+ */
 package main
 
 import (
