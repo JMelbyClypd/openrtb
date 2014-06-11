@@ -1,7 +1,7 @@
 package store
 
 import (
-	"github.com/clyphub/openrtb/apiserver/objects"
+	"github.com/clyphub/tvapi/objects"
 	"testing"
 )
 
@@ -9,7 +9,7 @@ const IDSTR = "abcd"
 
 func TestGetField(t *testing.T){
 
-	obj := new(objects.BidRequestObject)
+	obj := new(objects.AvailabilityRequestObject)
 	obj.Id = IDSTR
 	obj.AuctionType = 8
 	ms := NewMapStore()
@@ -30,7 +30,7 @@ func TestGetField(t *testing.T){
 }
 
 func TestSaveGetErase(t *testing.T){
-	obj := new(objects.BidRequestObject)
+	obj := new(objects.AvailabilityRequestObject)
 	obj.Id = IDSTR
 	obj.AuctionType = 8
 	ms := NewMapStore()
@@ -45,7 +45,7 @@ func TestSaveGetErase(t *testing.T){
 	if(e2 != nil){
 		t.Error(e2)
 	}
-	at := obj2.(*objects.BidRequestObject).AuctionType
+	at := obj2.(*objects.AvailabilityRequestObject).AuctionType
 	if(at != 8){
 		t.Errorf("Wrong AuctionType value returned; got %d, expected %d", at, 8)
 	}

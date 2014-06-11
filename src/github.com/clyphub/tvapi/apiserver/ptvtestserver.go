@@ -10,7 +10,8 @@ package main
 
 import (
 	"flag"
-	"github.com/clyphub/openrtb/apiserver/apiserver"
+	"github.com/clyphub/tvapi/apiserver/apiserver"
+	"github.com/clyphub/tvapi/server"
 )
 
 var (
@@ -23,9 +24,9 @@ func init() {
 }
 
 func main() {
-	server := apiserver.NewServer()
-	server.Init()
-	server.AddResponder(apiserver.NewOrderAPIResponder())
-	server.AddResponder(apiserver.NewRfpAPIResponder())
-	server.Open(address)
+	s := server.NewServer()
+	s.Init()
+	s.AddResponder(apiserver.NewOrderAPIResponder())
+	s.AddResponder(apiserver.NewInventoryAPIResponder())
+	s.Open(address)
 }

@@ -3,12 +3,12 @@ package store
 import (
 	"errors"
 	"fmt"
-	"github.com/clyphub/openrtb/apiserver/objects"
+	"github.com/clyphub/tvapi/objects"
 	"reflect"
 	"regexp"
 )
 
-type Store interface {
+type ObjectStore interface {
 	Save(obj objects.Storable) (key string, e error)
 	Get(key string) (obj objects.Storable, e error)
 	Erase(key string) (obj objects.Storable, e error)
@@ -20,9 +20,7 @@ type MapStore struct {
 }
 
 func NewMapStore() *MapStore {
-	m := new(MapStore)
-	m.store = make(map[string]objects.Storable,10)
-	return m
+	return &MapStore{store: make(map[string]objects.Storable,10)}
 }
 
 func(s *MapStore) Save(obj objects.Storable) (key string, e error) {
