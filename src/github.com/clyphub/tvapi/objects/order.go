@@ -34,7 +34,7 @@ type AvailabilityRequestObject struct {
 	Extension           ExtensionObject `json:"ext,omitempty"`
 }
 
-func (o *AvailabilityRequestObject) GetKey() string {
+func (o AvailabilityRequestObject) GetKey() string {
 	return o.RequestId
 }
 
@@ -63,7 +63,7 @@ type PlacementObject struct {
 	Extension   ExtensionObject     `json:"ext,omitempty"`
 }
 
-func (o *AvailabilityResponseObject) GetKey() string {
+func (o AvailabilityResponseObject) GetKey() string {
 	return o.RequestId
 }
 
@@ -83,7 +83,7 @@ type OrderObject struct {
 	Extension    ExtensionObject   `json:"ext,omitempty"`
 }
 
-func (o *OrderObject) GetKey() string {
+func (o OrderObject) GetKey() string {
 	return o.RequestId
 }
 
@@ -115,7 +115,7 @@ type OrderlineObject struct {
 	Extension           ExtensionObject   `json:"ext,omitempty"`
 }
 
-func (o *OrderlineObject) GetKey() string {
+func (o OrderlineObject) GetKey() string {
 	return o.Id
 }
 
@@ -134,6 +134,10 @@ type OrderAcceptanceObject struct {
 	Extension      ExtensionObject `json:"ext,omitempty"`
 }
 
+func (o OrderAcceptanceObject) GetKey() string {
+	return o.RequestId
+}
+
 type NotificationObject struct {
 	OrderId      string              `json:"orderid"`
 	BuyerId      string              `json:"buyerid"`
@@ -144,6 +148,10 @@ type NotificationObject struct {
 	Rollup       MeasurementObject   `json:"rollup,omitempty"`
 	Measurements []MeasurementObject `json:"measurements,omitempty"`
 	Extension    ExtensionObject     `json:"ext,omitempty"`
+}
+
+func (o NotificationObject) GetKey() string {
+	return o.OrderId
 }
 
 type MeasurementObject struct {

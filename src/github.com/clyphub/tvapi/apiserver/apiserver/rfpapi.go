@@ -10,7 +10,8 @@ package apiserver
 import (
 	"log"
 	"github.com/clyphub/tvapi/objects"
-	"time"
+	"github.com/clyphub/tvapi/server"
+	"net/http"
 )
 
 var RFPPATH = "/order/availability"
@@ -19,52 +20,56 @@ type InventoryAPIResponder struct {
 	APIResponder
 }
 
-func NewInventoryAPIResponder() *InventoryAPIResponder {
-	return &InventoryAPIResponder{APIResponder{path: RFPPATH, method: "POST"}}
+type InventoryAPIProcessor struct {
 }
 
-func (r *InventoryAPIResponder) GetObject() interface{} {
-	return objects.AvailabilityRequestObject{}
+func (r InventoryAPIProcessor) Unmarshal(buffer []byte) (objects.Storable, error) {
+	obj := objects.AvailabilityRequestObject{}
+	log.Printf("InventoryAPIProcessor unmarshalling with empty object of type %T", obj)
+	err := objects.Unmarshal(&obj, buffer)
+	return obj, err
 }
 
-func (r *InventoryAPIResponder) validateRequest(rfp interface{}) error {
+func (r InventoryAPIProcessor) ValidateRequest(rfp objects.Storable) *server.CodedError {
 	robj := rfp.(objects.AvailabilityRequestObject)
-	if(len(robj.BuyerId) == 0){
-
+	if(len(robj.RequestId) == 0){
+		return server.NewError("No requestId", http.StatusBadRequest)
 	}
+	if(len(robj.BuyerId) == 0){
+		return server.NewError("No buyerId", http.StatusBadRequest)
+	}
+	if(len(robj.AdvertiserId) == 0){
+		return server.NewError("No advertiserId", http.StatusBadRequest)
+	}
+	if(len(robj.ResponseUrl) == 0){
+		return server.NewError("No responseUrl", http.StatusBadRequest)
+	}
+	log.Println("Request validated")
 	return nil
 }
 
-func (r *InventoryAPIResponder) processRequest(rfp interface{}) (resp interface{}, e error){
+func (r InventoryAPIProcessor) ProcessRequest(rfp objects.Storable, responder *APIResponder) (objects.Storable, *server.CodedError){
 	log.Println("processRequest")
+	// Save the request
 	robj := rfp.(objects.AvailabilityRequestObject)
-	_, e = r.store.Save(&robj)
-	if(e != nil){
-		return nil, e
+	_, err := responder.store.Save(&robj)
+	if(err != nil){
+		return nil, server.NewError(err.Error(), http.StatusInternalServerError)
 	}
-	go r.waitAndSendResult(robj)
+	// Build the response
+	respObj := &objects.AvailabilityResponseObject{}
+	respObj.RequestId = robj.RequestId
+	respObj.BuyerId = robj.BuyerId
+	respObj.MinImpressions = robj.MinImpressions
+	respObj.MaxImpressions = robj.MaxImpressions
+	respObj.MinCPM = 15.30
+
+	// Send it later
+	go responder.waitAndSendResult(respObj, robj.ResponseUrl, robj.GetKey(), 1)
 
 	return nil,nil
 }
 
-func (r *InventoryAPIResponder) waitAndSendResult(obj objects.AvailabilityRequestObject){
-	// Let's go to sleep for a while
-	time.Sleep(100 * time.Second)
-
-	// Extract the response URL
-	url := obj.ResponseUrl
-	key := obj.GetKey()
-
-	resp := &objects.AvailabilityResponseObject{}
-	buffer, err := objects.Marshal(resp)
-	if(err != nil){
-		log.Printf("Could not marshal availability response %s", key)
-		return
-	}
-	cb := NewCallbacker(url)
-	err = cb.Callback(buffer)
-	if(err != nil){
-		log.Printf("Could not send availability response %s", key)
-		return
-	}
+func NewInventoryAPIResponder() *InventoryAPIResponder {
+	return &InventoryAPIResponder{APIResponder{path: RFPPATH, method: "POST", processor:&InventoryAPIProcessor{}}}
 }

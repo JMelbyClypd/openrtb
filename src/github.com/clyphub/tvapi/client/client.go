@@ -14,7 +14,6 @@ import (
 	"log"
 	"net/http"
 	"errors"
-	"strings"
 	"io/ioutil"
 )
 
@@ -33,20 +32,20 @@ func NewClient(srvr string)(*Client, error){
 	if(len(srvr) == 0){
 		return nil,errors.New("No base URL specified")
 	}
-	// Add trailing slash if it isn't present
-	if(strings.LastIndex(srvr, "/") != len(srvr)-1){
-		srvr = srvr + "/"
-	}
 	return &Client{baseUrl: srvr}, nil
 }
 
-func (c *Client) PostRequest(obj interface{}, url string) error {
+func (c Client) makeUrl(path string) string {
+	return "http://" + c.baseUrl + path
+}
+
+func (c Client) PostRequest(obj interface{}, path string) error {
 	buffer, err := objects.Marshal(obj)
 	if (err != nil) {
 		log.Printf("Error marshalling request body, error=%s",err.Error())
 		return err
 	}
-	req, err := http.NewRequest("POST", url, bytes.NewReader(buffer))
+	req, err := http.NewRequest("POST", c.makeUrl(path), bytes.NewReader(buffer))
 	if(err != nil){
 		return err
 	}
@@ -65,7 +64,7 @@ func (c *Client) PostRequest(obj interface{}, url string) error {
 
 }
 
-func (c *Client) GetRequest(url string, ref interface{}) error {
+func (c Client) GetRequest(url string, ref interface{}) error {
 	if (len(url) == 0) {
 		return errors.New("Could not GET: no URL specified")
 	}
@@ -91,7 +90,7 @@ func (c *Client) GetRequest(url string, ref interface{}) error {
 	return fmt.Errorf("Unsuccessful request, server returned %d", status)
 }
 
-func (c *Client) DelRequest(url string) error {
+func (c Client) DelRequest(url string) error {
 	if (len(url) == 0) {
 		return errors.New("Could not GET: no URL specified")
 	}

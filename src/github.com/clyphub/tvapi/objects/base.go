@@ -21,17 +21,22 @@ type Objectable interface {
 }
 
 func Unmarshal(ref interface{}, buffer []byte) error{
-	e := json.Unmarshal(buffer, &ref)
+	if(ref == nil){
+		log.Println("Attempting to unmarshal into an empty pointer")
+	}
+	log.Printf("Unmarshalling json\n%s\n into object of type %T", buffer, ref)
+	e := json.Unmarshal(buffer, ref)
+	log.Printf("Unmarshalled object with type %T", ref)
 	if (e != nil) {
-		log.Printf("Error unmarshalling object body (%s) error=%s",buffer,e.Error())
+		log.Printf("Error unmarshalling, error=%s",e.Error())
 		return e
 	}
 	return nil
 }
 
-func Marshal(obj interface{}) (body []byte, e error){
+func Marshal(obj interface{}) ([]byte, error){
 	// Marshal the results into the response body
-	buffer, e := json.Marshal(obj)
+	buffer, e := json.MarshalIndent(obj,"","    ")
 	if (e != nil) {
 		log.Printf("Error marshalling object body (%s) error=%s",buffer,e.Error())
 		return nil, e
@@ -66,7 +71,7 @@ type EnvironmentObject struct {
 	Extension  ExtensionObject `json:"ext,omitempty"`
 }
 
-func (o *EnvironmentObject) GetKey() string {
+func (o EnvironmentObject) GetKey() string {
 	return o.Id
 }
 
@@ -86,7 +91,7 @@ type ContentObject struct {
 	Extension  ExtensionObject `json:"ext,omitempty"`
 }
 
-func (o *ContentObject) GetKey() string {
+func (o ContentObject) GetKey() string {
 	return o.Id
 }
 
@@ -159,4 +164,8 @@ type AckObject struct {
 	Errors      []string        `json:"errors"`
 	Operation   int             `json:"operation"`
 	Extension   ExtensionObject `json:"ext,omitempty"`
+}
+
+func (o AckObject) GetKey() string {
+	return o.OrderId
 }

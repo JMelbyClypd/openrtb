@@ -9,10 +9,10 @@ import (
 )
 
 type ObjectStore interface {
-	Save(obj objects.Storable) (key string, e error)
-	Get(key string) (obj objects.Storable, e error)
-	Erase(key string) (obj objects.Storable, e error)
-	Find(fieldName string, fieldVal string) (results []objects.Storable, e error)
+	Save(obj objects.Storable) (string, error)
+	Get(key string) (objects.Storable, error)
+	Erase(key string) (objects.Storable, error)
+	Find(fieldName string, fieldVal string) ([]objects.Storable, error)
 }
 
 type MapStore struct {
@@ -23,7 +23,7 @@ func NewMapStore() *MapStore {
 	return &MapStore{store: make(map[string]objects.Storable,10)}
 }
 
-func(s *MapStore) Save(obj objects.Storable) (key string, e error) {
+func(s *MapStore) Save(obj objects.Storable) (string, error) {
 	if(obj == nil) {
 		return "", errors.New("Object is nil")
 	}
@@ -36,14 +36,14 @@ func(s *MapStore) Save(obj objects.Storable) (key string, e error) {
 	return k, nil
 }
 
-func(s *MapStore) Get(key string) (obj objects.Storable, e error){
+func(s *MapStore) Get(key string) (objects.Storable, error){
 	if(len(key) == 0) {
 		return nil, errors.New("Key is nil")
 	}
 	return s.store[key], nil
 }
 
-func(s *MapStore) Erase(key string) (obj objects.Storable, e error){
+func(s *MapStore) Erase(key string) (objects.Storable, error){
 	if(len(key)==0) {
 		return nil, errors.New("Key is nil")
 	}
@@ -52,7 +52,7 @@ func(s *MapStore) Erase(key string) (obj objects.Storable, e error){
 	return o, nil
 }
 
-func(s *MapStore) Find(fieldName string, fieldValPattern string) (results []objects.Storable, e error) {
+func(s *MapStore) Find(fieldName string, fieldValPattern string) ([]objects.Storable, error) {
 	if(len(fieldName) == 0) {
 		return nil, errors.New("Key is nil")
 	}
@@ -77,7 +77,7 @@ func(s *MapStore) Find(fieldName string, fieldValPattern string) (results []obje
 	return res, nil
 }
 
-func(s *MapStore) getField(fieldName string, obj objects.Storable) (valStr string, e error) {
+func(s *MapStore) getField(fieldName string, obj objects.Storable) (string, error) {
 	val := reflect.ValueOf(obj).Elem()
 	f := val.FieldByName(fieldName)
 	return fmt.Sprintf("%v", f.Interface()), nil
