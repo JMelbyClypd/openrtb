@@ -21,7 +21,7 @@ import (
 const (
 	ADDR = "127.0.0.1:2345"
 	CB_ADDR = "127.0.0.1:2345"
-	CB_PATH = "/responses"
+	CB_PATH = "/responses/"
 )
 
 type CallbackReceiver struct {

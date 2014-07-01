@@ -13,12 +13,11 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"strings"
 )
 
 const (
 	MSG = "Hey dere, dis is Hibbing callin\n"
-	BYE_PATH = "/bye"
+	BYE_PATH = "/bye/"
 	BYE_MSG = "Buh-bye"
 )
 
@@ -39,19 +38,6 @@ func NewError(m string, s int) *CodedError {
 	return &CodedError{msg: m, status: s}
 }
 
-/*
-Wrapper for dispatcher/mux
- */
-type Router struct {
-	routes    map[string]route
-}
-
-type route struct {
-	method string
-	path string
-	handler MethodHandler
-}
-
 type Server struct {
 	Router
 	listener net.Listener
@@ -60,7 +46,7 @@ type Server struct {
 
 func NewServer() *Server {
 	s:= Server{store: store.NewMapStore() }
-	s.routes = 	make(map[string]route)
+	s.root = 	newNode("/")
 	return &s
 }
 
@@ -101,68 +87,11 @@ func (s Server) Close() {
 	}
 }
 
-func (r Router) toKey(method string, path string) string {
-	if(len(method)==0 || len(path)==0){
-		log.Println("Attempting to register empty method or path")
-		return ""
-	}
-	return method + ":" + path
-}
-
-func (r Router) Register(method string, path string, handler MethodHandler) {
-
-	if(handler == nil){
-		log.Printf("Attempted to register nil handler with method %s and path %s", method, path)
-		return
-	}
-	// convert the method to uppercase
-	method = strings.ToUpper(method)
-	// convert the path to lowercase
-	path = strings.ToLower(path)
-	key := r.toKey(method, path)
-	route := newRoute(method, path, handler)
-	r.routes[key] = route
-	log.Printf("%d routes", len(r.routes))
-}
-
-func newRoute(method string, path string, handler MethodHandler) route {
-	return route{method, path, handler}
-}
-
-func (r Router) resolveHandler(method string, path string) MethodHandler {
-	// convert the method to uppercase
-	method = strings.ToUpper(method)
-	// convert the path to lowercase
-	path = strings.ToLower(path)
-	key := r.toKey(method, path)
-	route, ok := r.routes[key]
-	if(ok){
-		log.Printf("Matched route with method %s and path %s", method, path)
-		return route.handler
-	}
-	log.Printf("No handler found for method %s and path %s", method, path)
-	return nil
-}
-
-func (r Router) match(ro route, method string, path string) bool {
-	log.Printf("Matching %s %s", method, path)
-	if(len(method) == 0){
-		return false
-	}
-	if(method != ro.method){
-		return false
-	}
-	if(path != ro.path){
-		return false
-	}
-	return true
-}
-
 func (srvr Server) AddResponder(responder Responder){
 	responder.Init(&srvr,  srvr.store)
 }
 
-func (r Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+func (s Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	method := req.Method
 	path := req.URL.Path
 	log.Printf("Router.ServerHTTP entered with method %s and path %s", method, path)
@@ -170,22 +99,18 @@ func (r Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	status := http.StatusBadRequest
 	var body []byte
 
-	sink := r.resolveHandler(method, path)
-	if(sink == nil){
-		status,body = r.HandleBadMethod(req)
-	} else {
-		status,body = sink.Handle(req)
-	}
+	sink := s.resolveHandler(method, path)
+	status,body = sink.Handle(req)
 
 	log.Printf("ServeHTTP: Writing response with status %d\n", status)
-	err := r.writeResponse(w, req, status, body)
+	err := s.writeResponse(w, req, status, body)
 	if (err != nil) {
 		log.Println("Error while writing response: " + err.Error())
 	}
 	log.Println("ServeHTTP returning")
 }
 
-func (r Router) writeResponse(w http.ResponseWriter, req *http.Request, status int, body []byte) error {
+func (s Server) writeResponse(w http.ResponseWriter, req *http.Request, status int, body []byte) error {
 	w.WriteHeader(status)
 	if(len(body)>0){
 		w.Write(body)
@@ -202,11 +127,6 @@ func (r BaseResponder) Handle(req *http.Request) (int, []byte) {
 	return http.StatusOK, nil
 }
 
-
-func (r Router) HandleBadMethod(req *http.Request) (int, []byte)  {
-	return http.StatusMethodNotAllowed, nil
-}
-
 func (r BaseResponder) ReadBody(req *http.Request) ([]byte, error){
 	buffer, e := ioutil.ReadAll(req.Body)
 	defer req.Body.Close()
@@ -216,11 +136,6 @@ func (r BaseResponder) ReadBody(req *http.Request) ([]byte, error){
 	}
 	return buffer, nil
 }
-
-func (r BaseResponder) GetObject() interface{} {
-	return nil
-}
-
 
 //////////////////////////////////////////
 // Diagnostic responders

@@ -14,7 +14,7 @@ import (
 	"net/http"
 )
 
-var RFPPATH = "/order/availability"
+var RFPPATH = "/orders/availability/"
 
 type InventoryAPIResponder struct {
 	APIResponder

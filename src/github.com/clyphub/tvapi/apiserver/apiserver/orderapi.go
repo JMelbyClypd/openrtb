@@ -13,7 +13,7 @@ import (
 	"github.com/clyphub/tvapi/server"
 )
 
-var ORDERPATH = "/order/order"
+var ORDERPATH = "/orders/order"
 
 type OrderAPIResponder struct {
 	APIResponder
