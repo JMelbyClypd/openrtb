@@ -32,4 +32,5 @@ func TestMarshalling(t *testing.T){
 		t.Fail()
 		return
 	}
+	t.Logf("Dump: %#v", obj2)
 }

@@ -39,6 +39,16 @@ func (c Client) makeUrl(path string) string {
 	return "http://" + c.baseUrl + path
 }
 
+func (c Client) ReadBody(resp *http.Response) ([]byte, error){
+	buffer, e := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	if (e != nil) {
+		log.Printf("Error reading request body, error=%s",e.Error())
+		return nil, e
+	}
+	return buffer, nil
+}
+
 func (c Client) PostRequest(obj interface{}, path string) error {
 	buffer, err := objects.Marshal(obj)
 	if (err != nil) {
@@ -79,11 +89,15 @@ func (c Client) GetRequest(url string, ref interface{}) error {
 		return err
 	}
 	status := resp.StatusCode
+	log.Printf("GET received status code of %d", status)
 	if(status == 200){
-		buffer, err2 := ioutil.ReadAll(req.Body)
+		buffer, err2 := c.ReadBody(resp)
+		log.Printf("GET received body %s", buffer)
+		defer resp.Body.Close()
 		if(err2 != nil){
 			return err2
 		}
+		log.Printf("GET response body read, len=%d", len(buffer))
 		err2 = objects.Unmarshal(ref, buffer)
 		return err2
 	}

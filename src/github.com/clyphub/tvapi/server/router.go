@@ -11,6 +11,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"github.com/clyphub/tvapi/util"
 	"strings"
 )
 
@@ -38,23 +39,22 @@ func(n *Node) Add(child *Node)(){
 func(n *Node) FindChild(token string) *Node {
 	for _, ch := range n.children {
 		if(ch.path == token) {
-			log.Printf("FindChild returning %s", ch.path)
 			return ch
 		}
 	}
-	log.Println("FindChild returning nil")
 	return nil
 }
 
 func(n *Node) AddPath(path string) (*Node, error) {
 	// Need to add code to strip any trailing /
 
-	sp := strings.SplitAfter(path, "/")
+	sp := util.Unmunge(path)
 	cnt := len(sp)
 	currNode := n
 	for i:= 1; i<cnt;i++ {
 		nn := currNode.FindChild(sp[i])
-		if(nn == nil){
+		if(nn == nil ){
+			log.Printf("Adding node %s to parent %s", sp[i], currNode.path)
 			nn = newNode(sp[i])
 			currNode.Add(nn)
 		}
@@ -64,13 +64,13 @@ func(n *Node) AddPath(path string) (*Node, error) {
 }
 
 func(n *Node) FindLeaf(path string) *Node {
-	sp := strings.SplitAfter(path, "/")
+	sp := util.Unmunge(path)
 	cnt := len(sp)
 	currNode := n
 	for i:= 1; i<cnt;i++ {
 		nn := currNode.FindChild(sp[i])
 		if(nn == nil){
-			return nil
+			return currNode
 		}
 		currNode = nn
 	}
@@ -142,6 +142,7 @@ func (r Router) Register(method string, path string, handler MethodHandler) {
 		log.Println(e.Error())
 		return
 	}
+	log.Printf("Registered handler for method %s and path %s", method,path)
 }
 
 
@@ -153,7 +154,7 @@ func (r Router) resolveHandler(method string, path string) MethodHandler {
 
 	n := r.root.FindLeaf(path)
 	if(n != nil){
-		log.Printf("Found node for path %s", path)
+		log.Printf("Found node for path %s at %s", path, n.path)
 		h := n.GetHandler(method)
 		if(h != nil){
 			log.Printf("Matched route with method %s and path %s", method, path)
@@ -162,6 +163,19 @@ func (r Router) resolveHandler(method string, path string) MethodHandler {
 	}
 	log.Printf("No handler found for method %s and path %s", method, path)
 	return r.badMethodHandler
+}
+
+func(r Router) dumpNodes() {
+	level := 0
+	r.root.dump(level)
+}
+
+func(n *Node) dump(level int) {
+	log.Printf("Node: %s", n.path)
+	level = level +1
+	for _,child := range n.children{
+		child.dump(level)
+	}
 }
 
 

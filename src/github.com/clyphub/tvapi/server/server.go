@@ -44,9 +44,12 @@ type Server struct {
 	store store.ObjectStore
 }
 
-func NewServer() *Server {
-	s:= Server{store: store.NewMapStore() }
-	s.root = 	newNode("/")
+func NewServer(st store.ObjectStore) *Server {
+	s:= Server{}
+	s.root = newNode("/")
+	s.badMethodHandler = BadMethodHandler{}
+	s.store = st
+	//return &Server{Router{root:newNode("/"), badMethodHandler:BadMethodHandler{}}}
 	return &s
 }
 
@@ -56,7 +59,7 @@ type MethodHandler interface {
 
 type Responder interface {
 	MethodHandler
-	Init(srvr *Server, store store.ObjectStore)
+	Init(srvr *Server)
 }
 
 func (s Server) Init() {
@@ -64,10 +67,10 @@ func (s Server) Init() {
 	http.DefaultServeMux.Handle("/", s)
 
 	mr := &MsgResponder{}
-	mr.Init(&s, s.store)
+	mr.Init(&s)
 
 	sr := &Downer{}
-	sr.Init(&s, s.store)
+	sr.Init(&s)
 }
 
 func (s Server) Open(laddr string) {
@@ -88,7 +91,7 @@ func (s Server) Close() {
 }
 
 func (srvr Server) AddResponder(responder Responder){
-	responder.Init(&srvr,  srvr.store)
+	responder.Init(&srvr)
 }
 
 func (s Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -145,7 +148,7 @@ type MsgResponder struct {
 	BaseResponder
 }
 
-func (r MsgResponder) Init(srvr *Server, store store.ObjectStore) {
+func (r MsgResponder) Init(srvr *Server) {
 	r.s = MSG
 	srvr.Register("GET", "/", r)
 	log.Printf("MsgResponder initialized, msg=%s", r.s)
@@ -162,7 +165,7 @@ type Downer struct {
 	BaseResponder
 }
 
-func (r Downer) Init(srvr *Server, store store.ObjectStore) {
+func (r Downer) Init(srvr *Server) {
 	r.server = srvr
 	srvr.Register("GET", BYE_PATH, r)
 }

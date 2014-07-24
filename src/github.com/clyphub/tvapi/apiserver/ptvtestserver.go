@@ -12,6 +12,7 @@ import (
 	"flag"
 	"github.com/clyphub/tvapi/apiserver/apiserver"
 	"github.com/clyphub/tvapi/server"
+	"github.com/clyphub/tvapi/store"
 )
 
 var (
@@ -24,9 +25,10 @@ func init() {
 }
 
 func main() {
-	s := server.NewServer()
+	store := store.NewMapStore()
+	s := server.NewServer(store)
 	s.Init()
-	s.AddResponder(apiserver.NewOrderAPIResponder())
-	s.AddResponder(apiserver.NewInventoryAPIResponder())
+	s.AddResponder(apiserver.NewOrderAPIResponder(store))
+	s.AddResponder(apiserver.NewInventoryRequestResponder(store))
 	s.Open(address)
 }

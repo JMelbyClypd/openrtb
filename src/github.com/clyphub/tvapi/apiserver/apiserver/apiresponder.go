@@ -15,6 +15,8 @@ import (
 	"github.com/clyphub/tvapi/objects"
 	"github.com/clyphub/tvapi/server"
 	"github.com/clyphub/tvapi/store"
+	"github.com/clyphub/tvapi/util"
+	"strings"
 	"time"
 )
 
@@ -32,29 +34,132 @@ const (
 )
 
 
-type ObjectProcessor interface {
-	Unmarshal(buffer []byte) (obj objects.Storable, err error)
-	ValidateRequest(msg objects.Storable) *server.CodedError
-	ProcessRequest(req objects.Storable, responder *APIResponder) (resp objects.Storable, err *server.CodedError)
+type RequestProcessor interface {
+	Unmarshal(buffer []byte) (objects.Storable, error)
+	ValidateRequest(pathTokens []string, queryTokens []string, msg objects.Storable) *server.CodedError
+	ProcessRequest(pathTokens []string, queryTokens []string, req objects.Storable, responder *APIResponder) ([]objects.Storable, *server.CodedError)
 }
 
+type StoreManager struct {
+	store store.ObjectStore
+	pathKeys []string
+}
+
+func (sm StoreManager) SaveObject(buyerId string, objectKey string, obj objects.Storable) error {
+	log.Printf("SaveObject(), buyerId=%s, objectKey=%s", buyerId, objectKey)
+	keys := append(sm.pathKeys, buyerId, objectKey)
+	if(sm.store == nil){
+		log.Fatalln("Store is nil")
+	}
+	return sm.store.Set(keys, obj)
+}
+
+func (sm StoreManager) DeleteObject(buyerId string, objectKey string) error {
+	keys := append(sm.pathKeys, buyerId, objectKey)
+	return sm.store.Erase(keys)
+}
+
+func (sm StoreManager) DeleteAllByBuyer(buyerId string) error {
+	keys := append(sm.pathKeys, buyerId)
+	return sm.store.EraseAll(keys)
+}
+
+func (sm StoreManager) GetObject(buyerId string, objectKey string) (objects.Storable, error) {
+	keys := append(sm.pathKeys, buyerId, objectKey)
+	return sm.store.Get(keys)
+}
+
+func (sm StoreManager) GetAllByBuyer(buyerId string) ([]objects.Storable, error) {
+	keys := append(sm.pathKeys, buyerId)
+	return sm.store.GetAll(keys)
+}
+
+type GenericGetProcessor struct {
+	StoreManager
+}
+
+func (ggp GenericGetProcessor) Unmarshal(buffer []byte) (objects.Storable, error){
+	return nil, nil
+}
+
+func (ggp GenericGetProcessor) ValidateRequest(pathTokens []string, queryTokens []string,
+	msg objects.Storable) *server.CodedError {
+	// Check the path
+
+	// Check the query tokens
+
+	return nil
+}
+
+func (ggp GenericGetProcessor) ProcessRequest(pathTokens []string, queryTokens []string, req objects.Storable,
+	responder *APIResponder) ([]objects.Storable, *server.CodedError) {
+
+	lenp := len(pathTokens)
+	log.Printf("Path parsed to %d tokens, ggp path has %d tokens", lenp, len(ggp.pathKeys))
+	switch(lenp - len(ggp.pathKeys)){
+	case 0:{	// Addressed to general resource
+		log.Println("GGP Get: general resource")
+		return nil, server.NewError("Not Found", 404)
+	}
+	case 1:{	// Addressed to buyerId
+		log.Printf("GGP Get: all buyer %s orders", pathTokens[lenp-1])
+		ret, err := ggp.GetAllByBuyer(pathTokens[lenp-1])
+		if(err != nil){
+			return nil, server.NewError(err.Error(), 500)
+		}
+		return ret, nil
+	}
+	case 2:{	// Addressed to specific item
+		log.Printf("GGP Get: specific order %s from buyer %s", pathTokens[lenp-1], pathTokens[lenp-2])
+		ret, err :=  ggp.GetObject(pathTokens[lenp-2], pathTokens[lenp-1])
+		if(err != nil){
+			return nil, server.NewError(err.Error(), 500)
+		}
+		if(ret == nil){
+			return nil, server.NewError("Not Found", 404)
+		}
+		retArr := make([]objects.Storable, 1)
+		retArr[0] = ret
+		return retArr, nil
+	}
+	}
+
+	return nil, server.NewError("Problem processing GET request - too many path tokens", 400)
+}
 
 type APIResponder struct {
 	server.BaseResponder
-	method string
 	path string
-	store store.ObjectStore
-	processor ObjectProcessor
+	processorMap map[string]RequestProcessor
 }
 
-func (r APIResponder) Init(srvr *server.Server, store store.ObjectStore) {
-	r.store = store
-	srvr.Register(r.method, r.path, r)
+func (r APIResponder) Init(srvr *server.Server) {
+	log.Printf("Init() called for responder %s", r.path)
+	for key, _ := range r.processorMap {
+		srvr.Register(key,r.path, r)
+	}
 }
 
-func (r APIResponder) Handle(req *http.Request) (status int, body []byte)  {
+func (r APIResponder) AddProcessor(meth string, rp RequestProcessor) {
+	r.processorMap[meth] = rp
+}
+
+func (r APIResponder) getProcessor(method string) RequestProcessor{
+	if(&method == nil){
+		log.Println("no method value provided to getProcessor()")
+		return nil
+	}
+	return r.processorMap[method]
+}
+
+func (r APIResponder) Handle(req *http.Request) (int, []byte)  {
 
 	log.Println("APIResponder.Handle entered")
+	method := req.Method
+	u := req.URL
+	pathTokens := util.Unmunge(u.Path)
+	queryTokens := strings.Split(u.RawQuery,"&")
+
 	// Read the request body
 	buffer, err := r.ReadBody(req)
 	if (err != nil) {
@@ -62,38 +167,46 @@ func (r APIResponder) Handle(req *http.Request) (status int, body []byte)  {
 	}
 	log.Println("APIResponder.Handle: body read")
 
-	// Unmarshal the request
-	obj, err := r.processor.Unmarshal(buffer)
+	pr := r.getProcessor(method)
+	if(&pr == nil){
+		return BAD, nil
+	}
+
+	obj, err := pr.Unmarshal(buffer)
 	if (err != nil) {
 		return ERROR, nil
 	}
-	log.Printf("Have object of type %T", obj)
-	log.Printf("Received message with RequestId %s:\n%s\n", obj.GetKey(), buffer)
-
-	// Validate it
-	cerr := r.processor.ValidateRequest(obj)
-	if(cerr != nil){
-		log.Printf("Invalid request object: %s\n", cerr.Error())
+	if(obj != nil){
+		log.Printf("Have object of type %T", obj)
+		log.Printf("Received message with RequestId %s:\n%s\n", obj.GetKey(), buffer)
+	} else {
+		log.Println("Request did not include a body")
+	}
+	cerr := pr.ValidateRequest(pathTokens, queryTokens, obj)
+	if (cerr != nil) {
+		log.Printf("Invalid %s request: %s\n", method, cerr.Error())
 		return cerr.Code(), nil
 	}
 
 	// Process it
-	response, cerr := r.processor.ProcessRequest(obj, &r)
-	if(cerr != nil){
-		log.Printf("Error processing request object: %s\n", err.Error())
+	responses, cerr := pr.ProcessRequest(pathTokens, queryTokens, obj, &r)
+	if (cerr != nil) {
+		log.Printf("Error processing %s request: %s\n", method, cerr.Error())
 		return cerr.Code(), nil
 	}
 
 	// Marshal the results into the response body
-	if(response != nil){
-		buffer, err = objects.Marshal(response)
+	if (len(responses) > 0) {
+		buffer, err = objects.Marshal(responses)
+		log.Printf("Marshalling %d objects into response as \n%s", len(responses), buffer)
 	}
 	if (err != nil) {
-
+		log.Printf("Error marshalling response: %s\n", err.Error())
 		return ERROR, nil
 	}
-	log.Println("Request handled")
+	log.Printf("%s Request handled", method)
 	return OK, buffer
+
 }
 
 type Callbacker struct {
@@ -123,13 +236,20 @@ func (cb Callbacker) Callback(b []byte) error {
 	return nil
 }
 
-func (r APIResponder) waitAndSendResult(resp interface{}, url string, key string, delay int){
+func (r APIResponder) waitAndSendResult(resp []objects.Storable, url string, key string, delay int){
 	log.Printf("waitAndSendResult called with url %s and key %s", url, key)
 
 	// Let's go to sleep for a while
 	time.Sleep(time.Duration(delay) * time.Second)
+	var buffer []byte
+	var err error
 
-	buffer, err := objects.Marshal(resp)
+	if(len(resp)==1){
+		buffer, err = objects.Marshal(resp[0])
+	} else {
+		buffer, err = objects.Marshal(resp)
+	}
+
 	if(err != nil){
 		log.Printf("Could not marshal callback object %s", key)
 		return

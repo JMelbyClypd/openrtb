@@ -2,84 +2,95 @@ package store
 
 import (
 	"errors"
-	"fmt"
+	"log"
 	"github.com/clyphub/tvapi/objects"
-	"reflect"
-	"regexp"
+	"github.com/clyphub/tvapi/util"
 )
 
 type ObjectStore interface {
-	Save(obj objects.Storable) (string, error)
-	Get(key string) (objects.Storable, error)
-	Erase(key string) (objects.Storable, error)
-	Find(fieldName string, fieldVal string) ([]objects.Storable, error)
+	Set(keys []string, obj objects.Storable) error
+	Get(keys []string) (objects.Storable, error)
+	GetAll(keys []string) ([]objects.Storable, error)
+	Erase(keys []string) error
+	EraseAll(keys []string) error
 }
 
 type MapStore struct {
 	store map[string]objects.Storable
 }
 
-func NewMapStore() *MapStore {
-	return &MapStore{store: make(map[string]objects.Storable,10)}
+func NewMapStore() MapStore {
+	return MapStore{store: make(map[string]objects.Storable,10)}
 }
 
-func(s *MapStore) Save(obj objects.Storable) (string, error) {
+func(s MapStore) isMatch(queryKeys []string, mapKeys []string) bool {
+	lqk := len(queryKeys)
+	if(lqk > len(mapKeys)) {
+		return false
+	}
+	for i := 0;i<lqk;i++ {
+		if(queryKeys[i] != mapKeys[i]){
+			return false
+		}
+	}
+	log.Printf("isMatch=true for %s and %s", util.Munge(queryKeys), util.Munge(mapKeys))
+	return true
+}
+
+func(s MapStore) Set(keys []string, obj objects.Storable) error {
 	if(obj == nil) {
-		return "", errors.New("Object is nil")
+		return errors.New("Object is nil")
 	}
-	k := obj.GetKey()
-	if(len(k) == 0) {
-		return "", errors.New("Key is nil")
+	if(len(keys) == 0) {
+		return errors.New("Key is nil")
 	}
-
+	k := util.Munge(keys)
 	s.store[k] = obj
-	return k, nil
+	return nil
 }
 
-func(s *MapStore) Get(key string) (objects.Storable, error){
-	if(len(key) == 0) {
-		return nil, errors.New("Key is nil")
+func(s MapStore) Get(keys []string) (objects.Storable, error){
+	if(len(keys) == 0) {
+		return nil, errors.New("No keys")
 	}
+	key := util.Munge(keys)
 	return s.store[key], nil
 }
 
-func(s *MapStore) Erase(key string) (objects.Storable, error){
-	if(len(key)==0) {
-		return nil, errors.New("Key is nil")
+func(s MapStore) GetAll(keys []string) ([]objects.Storable, error){
+	if(len(keys) == 0) {
+		return nil, errors.New("No keys")
 	}
-	o := s.store[key]
+	ret := make([]objects.Storable,0,10)
+
+	for key, value := range s.store {
+		toks := util.Unmunge(key)
+		if(s.isMatch(keys, toks)){
+			ret = append(ret, value)
+		}
+	}
+	return ret, nil
+}
+
+func(s MapStore) Erase(keys []string) error{
+	if(len(keys)==0) {
+		return errors.New("No keys")
+	}
+	key := util.Munge(keys)
 	delete(s.store, key)
-	return o, nil
+	return nil
 }
 
-func(s *MapStore) Find(fieldName string, fieldValPattern string) ([]objects.Storable, error) {
-	if(len(fieldName) == 0) {
-		return nil, errors.New("Key is nil")
+func(s MapStore) EraseAll(keys []string) error{
+	if(len(keys) == 0) {
+		return errors.New("No keys")
 	}
-	if(len(fieldValPattern) == 0) {
-		return nil, nil
-	}
-	regex, rexerr := regexp.Compile(fieldValPattern)
-	if(rexerr != nil){
-		return nil, rexerr
-	}
-
-	res := make([]objects.Storable, 0)
-	for _, val := range s.store {
-		valStr, e := s.getField(fieldName, val)
-		if(e != nil){
-			return nil, e
-		}
-		if(regex.MatchString(valStr)){
-			res = append(res, val)
+	for key, _ := range s.store {
+		toks := util.Unmunge(key)
+		if(s.isMatch(keys, toks)){
+			s.Erase(toks)
 		}
 	}
-	return res, nil
-}
-
-func(s *MapStore) getField(fieldName string, obj objects.Storable) (string, error) {
-	val := reflect.ValueOf(obj).Elem()
-	f := val.FieldByName(fieldName)
-	return fmt.Sprintf("%v", f.Interface()), nil
+	return nil
 }
 

@@ -58,7 +58,7 @@ func TestMsgResponderGet(t *testing.T) {
 }
 
 func TestServerGet(t *testing.T) {
-	s := NewServer()
+	s := NewServer(store.NewMapStore())
 	s.Init()
 	defer s.Close()
 
@@ -85,7 +85,7 @@ type Looper struct {
 	BaseResponder
 }
 
-func (r *Looper) Init(srvr *Server, store store.ObjectStore) {
+func (r *Looper) Init(srvr *Server) {
 	srvr.Register("POST", "/loop", r)
 	srvr.Register("PUT", "/loop", r)
 	log.Println("Looper initialized")
@@ -102,7 +102,7 @@ func (r *Looper) Handle(req *http.Request) (int, []byte) {
 }
 
 func TestServerPost(t *testing.T) {
-	s := NewServer()
+	s := NewServer(store.NewMapStore())
 	s.Init()
 	s.AddResponder(&Looper{})
 	defer s.Close()
@@ -126,7 +126,7 @@ func TestServerPost(t *testing.T) {
 }
 
 func TestServerPut(t *testing.T) {
-	s := NewServer()
+	s := NewServer(store.NewMapStore())
 	s.Init()
 	s.AddResponder(&Looper{})
 	defer s.Close()
@@ -153,7 +153,7 @@ type Deleter struct {
 	BaseResponder
 }
 
-func (r *Deleter) Init(srvr *Server, store store.ObjectStore) {
+func (r *Deleter) Init(srvr *Server) {
 	srvr.Register("DELETE", "/obj", r)
 	log.Println("Deleter initialized")
 }
@@ -165,7 +165,7 @@ func (r *Deleter) Handle(req *http.Request) (status int, body []byte) {
 }
 
 func TestServerDelete(t *testing.T) {
-	s := NewServer()
+	s := NewServer(store.NewMapStore())
 	s.Init()
 	s.AddResponder(&Deleter{})
 	defer s.Close()

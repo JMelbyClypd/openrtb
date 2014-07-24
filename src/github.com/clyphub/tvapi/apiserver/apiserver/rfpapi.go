@@ -11,26 +11,29 @@ import (
 	"log"
 	"github.com/clyphub/tvapi/objects"
 	"github.com/clyphub/tvapi/server"
+	"github.com/clyphub/tvapi/store"
+	"github.com/clyphub/tvapi/util"
 	"net/http"
 )
 
 var RFPPATH = "/orders/availability/"
 
-type InventoryAPIResponder struct {
+type InventoryRequestResponder struct {
 	APIResponder
 }
 
-type InventoryAPIProcessor struct {
+type InventoryRequestProcessor struct {
+	StoreManager
 }
 
-func (r InventoryAPIProcessor) Unmarshal(buffer []byte) (objects.Storable, error) {
+func (r InventoryRequestProcessor) Unmarshal(buffer []byte) (objects.Storable, error) {
 	obj := objects.AvailabilityRequestObject{}
 	log.Printf("InventoryAPIProcessor unmarshalling with empty object of type %T", obj)
 	err := objects.Unmarshal(&obj, buffer)
 	return obj, err
 }
 
-func (r InventoryAPIProcessor) ValidateRequest(rfp objects.Storable) *server.CodedError {
+func (r InventoryRequestProcessor) ValidateRequest(pathTokens []string, queryTokens []string, rfp objects.Storable) *server.CodedError {
 	robj := rfp.(objects.AvailabilityRequestObject)
 	if(len(robj.RequestId) == 0){
 		return server.NewError("No requestId", http.StatusBadRequest)
@@ -48,11 +51,11 @@ func (r InventoryAPIProcessor) ValidateRequest(rfp objects.Storable) *server.Cod
 	return nil
 }
 
-func (r InventoryAPIProcessor) ProcessRequest(rfp objects.Storable, responder *APIResponder) (objects.Storable, *server.CodedError){
+func (r InventoryRequestProcessor) ProcessRequest(pathTokens []string, queryTokens []string, rfp objects.Storable, responder *APIResponder) ([]objects.Storable, *server.CodedError){
 	log.Println("processRequest")
 	// Save the request
 	robj := rfp.(objects.AvailabilityRequestObject)
-	_, err := responder.store.Save(&robj)
+	err := r.SaveObject(robj.BuyerId, robj.RequestId, &robj)
 	if(err != nil){
 		return nil, server.NewError(err.Error(), http.StatusInternalServerError)
 	}
@@ -64,12 +67,18 @@ func (r InventoryAPIProcessor) ProcessRequest(rfp objects.Storable, responder *A
 	respObj.MaxImpressions = robj.MaxImpressions
 	respObj.MinCPM = 15.30
 
+	respObjs := make([]objects.Storable,1)
+	respObjs[0] = respObj
+
 	// Send it later
-	go responder.waitAndSendResult(respObj, robj.ResponseUrl, robj.GetKey(), 1)
+	go responder.waitAndSendResult(respObjs, robj.ResponseUrl, robj.GetKey(), 1)
 
 	return nil,nil
 }
 
-func NewInventoryAPIResponder() *InventoryAPIResponder {
-	return &InventoryAPIResponder{APIResponder{path: RFPPATH, method: "POST", processor:&InventoryAPIProcessor{}}}
+func NewInventoryRequestResponder(st store.ObjectStore) *InventoryRequestResponder {
+	x:= &InventoryRequestResponder{APIResponder{path: RFPPATH, processorMap: make(map[string]RequestProcessor,4)}}
+	x.AddProcessor("POST", &InventoryRequestProcessor{StoreManager{store: st, pathKeys:util.Unmunge(RFPPATH)}})
+	x.AddProcessor("GET", &GenericGetProcessor{StoreManager{store: st, pathKeys:util.Unmunge(RFPPATH)}})
+	return x
 }
