@@ -10,7 +10,6 @@ package impl
 import (
 	"log"
 	"tvontap/tvapi/objects"
-	"tvontap/tvapi/server"
 )
 
 type GenericGetProcessor struct {
@@ -22,7 +21,7 @@ func (ggp GenericGetProcessor) Unmarshal(buffer []byte) (objects.Storable, error
 }
 
 func (ggp GenericGetProcessor) ValidateRequest(pathTokens []string, queryTokens []string,
-	msg objects.Storable) *server.CodedError {
+	msg objects.Storable) *objects.CodedError {
 	// Check the path
 
 	// Check the query tokens
@@ -31,7 +30,7 @@ func (ggp GenericGetProcessor) ValidateRequest(pathTokens []string, queryTokens 
 }
 
 func (ggp GenericGetProcessor) ProcessRequest(pathTokens []string, queryTokens []string, req objects.Storable,
-	responder *APIResponder) ([]objects.Storable, *server.CodedError) {
+	responder *APIResponder) ([]objects.Storable, *objects.CodedError) {
 
 	lenp := len(pathTokens)
 	log.Printf("Path parsed to %d tokens, ggp path has %d tokens", lenp, len(ggp.pathKeys))
@@ -39,14 +38,14 @@ func (ggp GenericGetProcessor) ProcessRequest(pathTokens []string, queryTokens [
 	case 0:
 	{ // Addressed to general resource
 		log.Println("GGP Get: general resource")
-		return nil, server.NewError("Not Found", 404)
+		return nil, objects.NewError("Not Found", 404)
 	}
 	case 1:
 	{ // Addressed to buyerId
 		log.Printf("GGP Get: all buyer %s orders", pathTokens[lenp-1])
 		ret, err := ggp.GetAllByBuyer(pathTokens[lenp-1])
 		if err != nil {
-			return nil, server.NewError(err.Error(), 500)
+			return nil, objects.NewError(err.Error(), 500)
 		}
 		return ret, nil
 	}
@@ -55,10 +54,10 @@ func (ggp GenericGetProcessor) ProcessRequest(pathTokens []string, queryTokens [
 		log.Printf("GGP Get: specific order %s from buyer %s", pathTokens[lenp-1], pathTokens[lenp-2])
 		ret, err := ggp.GetObject(pathTokens[lenp-2], pathTokens[lenp-1])
 		if err != nil {
-			return nil, server.NewError(err.Error(), 500)
+			return nil, objects.NewError(err.Error(), 500)
 		}
 		if ret == nil {
-			return nil, server.NewError("Not Found", 404)
+			return nil, objects.NewError("Not Found", 404)
 		}
 		retArr := make([]objects.Storable, 1)
 		retArr[0] = ret
@@ -66,7 +65,7 @@ func (ggp GenericGetProcessor) ProcessRequest(pathTokens []string, queryTokens [
 	}
 	}
 
-	return nil, server.NewError("Problem processing GET request - too many path tokens", 400)
+	return nil, objects.NewError("Problem processing GET request - too many path tokens", 400)
 }
 
 type GenericDeleteProcessor struct {
@@ -78,7 +77,7 @@ func (gdp GenericDeleteProcessor) Unmarshal(buffer []byte) (objects.Storable, er
 }
 
 func (gdp GenericDeleteProcessor) ValidateRequest(pathTokens []string, queryTokens []string,
-	msg objects.Storable) *server.CodedError {
+	msg objects.Storable) *objects.CodedError {
 	// Check the path
 
 	// Check the query tokens
@@ -87,22 +86,22 @@ func (gdp GenericDeleteProcessor) ValidateRequest(pathTokens []string, queryToke
 }
 
 func (gdp GenericDeleteProcessor) ProcessRequest(pathTokens []string, queryTokens []string, req objects.Storable,
-	responder *APIResponder) ([]objects.Storable, *server.CodedError) {
+	responder *APIResponder) ([]objects.Storable, *objects.CodedError) {
 
 	lenp := len(pathTokens)
-	log.Printf("Path parsed to %d tokens, ggp path has %d tokens", lenp, len(ggp.pathKeys))
+	log.Printf("Path parsed to %d tokens, ggp path has %d tokens", lenp, len(gdp.pathKeys))
 	switch lenp - len(gdp.pathKeys) {
 	case 0:
 	{ // Addressed to general resource
 		log.Println("GDP DELETE: general resource")
-		return nil, server.NewError("Not Found", 404)
+		return nil, objects.NewError("Not Found", 404)
 	}
 	case 1:
 	{ // Addressed to buyerId
 		log.Printf("GDP Delete: all buyer %s orders", pathTokens[lenp-1])
 		err := gdp.DeleteAllByBuyer(pathTokens[lenp-1])
 		if err != nil {
-			return nil, server.NewError(err.Error(), 500)
+			return nil, objects.NewError(err.Error(), 500)
 		}
 		return nil, nil
 	}
@@ -111,7 +110,7 @@ func (gdp GenericDeleteProcessor) ProcessRequest(pathTokens []string, queryToken
 		log.Printf("GDP Delete: specific order %s from buyer %s", pathTokens[lenp-1], pathTokens[lenp-2])
 		err := gdp.DeleteObject(pathTokens[lenp-2], pathTokens[lenp-1])
 		if err != nil {
-			return nil, server.NewError(err.Error(), 500)
+			return nil, objects.NewError(err.Error(), 500)
 		}
 
 		retArr := make([]objects.Storable, 0)
@@ -119,5 +118,5 @@ func (gdp GenericDeleteProcessor) ProcessRequest(pathTokens []string, queryToken
 	}
 	}
 
-	return nil, server.NewError("Problem processing DELETE request - too many path tokens", 400)
+	return nil, objects.NewError("Problem processing DELETE request - too many path tokens", 400)
 }

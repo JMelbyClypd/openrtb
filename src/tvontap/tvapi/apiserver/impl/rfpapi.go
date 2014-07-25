@@ -11,7 +11,6 @@ import (
 	"log"
 	"net/http"
 	"tvontap/tvapi/objects"
-	"tvontap/tvapi/server"
 	"tvontap/tvapi/store"
 	"tvontap/tvapi/util"
 )
@@ -33,31 +32,31 @@ func (r InventoryRequestProcessor) Unmarshal(buffer []byte) (objects.Storable, e
 	return obj, err
 }
 
-func (r InventoryRequestProcessor) ValidateRequest(pathTokens []string, queryTokens []string, rfp objects.Storable) *server.CodedError {
+func (r InventoryRequestProcessor) ValidateRequest(pathTokens []string, queryTokens []string, rfp objects.Storable) *objects.CodedError {
 	robj := rfp.(objects.AvailabilityRequestObject)
 	if len(robj.RequestId) == 0 {
-		return server.NewError("No requestId", http.StatusBadRequest)
+		return objects.NewError("No requestId", http.StatusBadRequest)
 	}
 	if len(robj.BuyerId) == 0 {
-		return server.NewError("No buyerId", http.StatusBadRequest)
+		return objects.NewError("No buyerId", http.StatusBadRequest)
 	}
 	if len(robj.AdvertiserId) == 0 {
-		return server.NewError("No advertiserId", http.StatusBadRequest)
+		return objects.NewError("No advertiserId", http.StatusBadRequest)
 	}
 	if len(robj.ResponseUrl) == 0 {
-		return server.NewError("No responseUrl", http.StatusBadRequest)
+		return objects.NewError("No responseUrl", http.StatusBadRequest)
 	}
 	log.Println("Request validated")
 	return nil
 }
 
-func (r InventoryRequestProcessor) ProcessRequest(pathTokens []string, queryTokens []string, rfp objects.Storable, responder *APIResponder) ([]objects.Storable, *server.CodedError) {
+func (r InventoryRequestProcessor) ProcessRequest(pathTokens []string, queryTokens []string, rfp objects.Storable, responder *APIResponder) ([]objects.Storable, *objects.CodedError) {
 	log.Println("processRequest")
 	// Save the request
 	robj := rfp.(objects.AvailabilityRequestObject)
 	err := r.SaveObject(robj.BuyerId, robj.RequestId, &robj)
 	if err != nil {
-		return nil, server.NewError(err.Error(), http.StatusInternalServerError)
+		return nil, objects.NewError(err.Error(), http.StatusInternalServerError)
 	}
 	// Build the response
 	respObj := &objects.AvailabilityResponseObject{}
@@ -80,5 +79,6 @@ func NewInventoryRequestResponder(st store.ObjectStore) *InventoryRequestRespond
 	x := &InventoryRequestResponder{APIResponder{path: RFPPATH, processorMap: make(map[string]RequestProcessor, 4)}}
 	x.AddProcessor("POST", &InventoryRequestProcessor{StoreManager{store: st, pathKeys: util.Unmunge(RFPPATH)}})
 	x.AddProcessor("GET", &GenericGetProcessor{StoreManager{store: st, pathKeys: util.Unmunge(RFPPATH)}})
+	x.AddProcessor("DELETE", &GenericDeleteProcessor{StoreManager{store: st, pathKeys: util.Unmunge(RFPPATH)}})
 	return x
 }

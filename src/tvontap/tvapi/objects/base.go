@@ -9,8 +9,35 @@ package objects
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 )
+
+type CodedError struct {
+	msg    string
+	status int
+}
+
+func (e CodedError) Error() string {
+	return e.msg
+}
+
+func (e CodedError) Code() int {
+	return e.status
+}
+
+func NewError(m string, s int) *CodedError {
+	return &CodedError{msg: m, status: s}
+}
+
+func FromError(e error, s int) *CodedError {
+	return &CodedError{msg: e.Error(), status: s}
+}
+
+func NewErrorf(format string, status int, a ...interface{}) *CodedError {
+	return NewError(fmt.Sprintf(format, a...), status)
+}
+
 
 type Storable interface {
 	GetKey() string

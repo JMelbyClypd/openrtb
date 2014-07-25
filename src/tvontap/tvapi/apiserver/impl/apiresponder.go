@@ -35,8 +35,8 @@ const (
 
 type RequestProcessor interface {
 	Unmarshal(buffer []byte) (objects.Storable, error)
-	ValidateRequest(pathTokens []string, queryTokens []string, msg objects.Storable) *server.CodedError
-	ProcessRequest(pathTokens []string, queryTokens []string, req objects.Storable, responder *APIResponder) ([]objects.Storable, *server.CodedError)
+	ValidateRequest(pathTokens []string, queryTokens []string, msg objects.Storable) *objects.CodedError
+	ProcessRequest(pathTokens []string, queryTokens []string, req objects.Storable, responder *APIResponder) ([]objects.Storable, *objects.CodedError)
 }
 
 type StoreManager struct {

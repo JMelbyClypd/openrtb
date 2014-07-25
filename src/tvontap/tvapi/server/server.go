@@ -21,23 +21,6 @@ const (
 	BYE_MSG  = "Buh-bye"
 )
 
-type CodedError struct {
-	msg    string
-	status int
-}
-
-func (e CodedError) Error() string {
-	return e.msg
-}
-
-func (e CodedError) Code() int {
-	return e.status
-}
-
-func NewError(m string, s int) *CodedError {
-	return &CodedError{msg: m, status: s}
-}
-
 type Server struct {
 	Router
 	listener net.Listener

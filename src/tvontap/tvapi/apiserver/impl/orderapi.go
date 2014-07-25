@@ -10,7 +10,6 @@ package impl
 import (
 	"log"
 	"tvontap/tvapi/objects"
-	"tvontap/tvapi/server"
 	"tvontap/tvapi/store"
 	"tvontap/tvapi/util"
 )
@@ -37,11 +36,11 @@ func (r OrderAPIProcessor) Unmarshal(buffer []byte) (objects.Storable, error) {
 	return obj, err
 }
 
-func (r OrderAPIProcessor) ValidateRequest(pathTokens []string, queryTokens []string, order objects.Storable) *server.CodedError {
+func (r OrderAPIProcessor) ValidateRequest(pathTokens []string, queryTokens []string, order objects.Storable) *objects.CodedError {
 	return nil
 }
 
-func (r OrderAPIProcessor) ProcessRequest(pathTokens []string, queryTokens []string, order objects.Storable, responder *APIResponder) ([]objects.Storable, *server.CodedError) {
+func (r OrderAPIProcessor) ProcessRequest(pathTokens []string, queryTokens []string, order objects.Storable, responder *APIResponder) ([]objects.Storable, *objects.CodedError) {
 	log.Println("processRequest")
 	respObjs := make([]objects.Storable, 1)
 	respObjs[0] = &objects.OrderAcceptanceObject{}

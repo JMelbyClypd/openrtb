@@ -10,7 +10,6 @@ package client
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -49,44 +48,44 @@ func (c Client) ReadBody(resp *http.Response) ([]byte, error) {
 	return buffer, nil
 }
 
-func (c Client) PostRequest(obj interface{}, path string) error {
+func (c Client) PostRequest(obj interface{}, path string) *objects.CodedError {
 	buffer, err := objects.Marshal(obj)
 	if err != nil {
 		log.Printf("Error marshalling request body, error=%s", err.Error())
-		return err
+		return objects.FromError(err, 500)
 	}
 	req, err := http.NewRequest("POST", c.makeUrl(path), bytes.NewReader(buffer))
 	if err != nil {
-		return err
+		return objects.FromError(err, 500)
 	}
 	req.Header.Set("Content-Type", CONTENT_TYPE)
 	req.Header.Set(PTV_HDR, PTV_HDR_VAL)
 
 	resp, err := c.Do(req)
 	if err != nil {
-		return err
+		return objects.FromError(err, 500)
 	}
 	status := resp.StatusCode
 	if status == 200 {
 		return nil
 	}
-	return fmt.Errorf("Unsuccessful request, server returned %d", status)
+	return objects.NewErrorf("Unsuccessful request, server returned %d", status, status)
 
 }
 
-func (c Client) GetRequest(url string, ref interface{}) error {
+func (c Client) GetRequest(url string, ref interface{}) *objects.CodedError {
 	if len(url) == 0 {
-		return errors.New("Could not GET: no URL specified")
+		return objects.NewError("Could not GET: no URL specified", 500)
 	}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return err
+		return objects.FromError(err, 500)
 	}
 	req.Header.Set(PTV_HDR, PTV_HDR_VAL)
 
 	resp, err := c.Do(req)
 	if err != nil {
-		return err
+		return objects.FromError(err, 500)
 	}
 	status := resp.StatusCode
 	log.Printf("GET received status code of %d", status)
@@ -95,32 +94,35 @@ func (c Client) GetRequest(url string, ref interface{}) error {
 		log.Printf("GET received body %s", buffer)
 		defer resp.Body.Close()
 		if err2 != nil {
-			return err2
+			return objects.FromError(err2, 500)
 		}
 		log.Printf("GET response body read, len=%d", len(buffer))
 		err2 = objects.Unmarshal(ref, buffer)
-		return err2
+		if(err2 != nil){
+			return objects.FromError(err2, 500)
+		}
+		return nil
 	}
-	return fmt.Errorf("Unsuccessful request, server returned %d", status)
+	return objects.NewErrorf("Unsuccessful request, server returned %d", status, status)
 }
 
-func (c Client) DelRequest(url string) error {
+func (c Client) DelRequest(url string) *objects.CodedError {
 	if len(url) == 0 {
-		return errors.New("Could not GET: no URL specified")
+		return objects.NewError("Could not GET: no URL specified", 500)
 	}
 	req, err := http.NewRequest("DELETE", url, nil)
 	if err != nil {
-		return err
+		return objects.FromError(err, 500)
 	}
 	req.Header.Set(PTV_HDR, PTV_HDR_VAL)
 
 	resp, err := c.Do(req)
 	if err != nil {
-		return err
+		return objects.FromError(err, 500)
 	}
 	status := resp.StatusCode
 	if status == 200 {
 		return nil
 	}
-	return fmt.Errorf("Unsuccessful request, server returned %d", status)
+	return objects.NewErrorf("Unsuccessful request, server returned %d", status, status)
 }

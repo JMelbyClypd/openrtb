@@ -49,16 +49,16 @@ func (r CallbackProcessor) Unmarshal(buffer []byte) (objects.Storable, error) {
 	return obj, err
 }
 
-func (r CallbackProcessor) ValidateRequest(pathTokens []string, queryTokens []string, rfp objects.Storable) *server.CodedError {
+func (r CallbackProcessor) ValidateRequest(pathTokens []string, queryTokens []string, rfp objects.Storable) *objects.CodedError {
 	if &rfp == nil {
 		log.Println("CallbackProcessor.received = nil")
 		r.t.Fail()
-		return server.NewError("No response received", 400)
+		return objects.NewError("No response received", 400)
 	}
 	return nil
 }
 
-func (r CallbackProcessor) ProcessRequest(pathTokens []string, queryTokens []string, rfp objects.Storable, responder *APIResponder) (resp []objects.Storable, e *server.CodedError) {
+func (r CallbackProcessor) ProcessRequest(pathTokens []string, queryTokens []string, rfp objects.Storable, responder *APIResponder) (resp []objects.Storable, e *objects.CodedError) {
 	log.Println("Processing callback")
 	r.received = rfp
 	return nil, nil
@@ -83,16 +83,16 @@ func TestAvailabilityRequest(t *testing.T) {
 
 	// Set up the client and test request
 	req := objects.AvailabilityRequestObject{RequestId: "1234abc", BuyerId: "AcmeDSP123", AdvertiserId: "Ronco", ResponseUrl: "http://" + CB_ADDR + CB_PATH}
-	cl, e := client.NewClient(ADDR)
-	if e != nil {
-		t.Fatalf("Could not open client, error=%s", e.Error())
+	cl, ex := client.NewClient(ADDR)
+	if ex != nil {
+		t.Fatalf("Could not open client, error=%s", ex.Error())
 	}
 
 	log.Println("Client set up")
 	// Have the client do something useful
-	e = cl.PostRequest(req, RFPPATH)
-	if e != nil {
-		t.Logf("Transaction failed, error=%s", e.Error())
+	err := cl.PostRequest(req, RFPPATH)
+	if err != nil {
+		t.Logf("Transaction failed, error=%s", err.Error())
 		t.Fail()
 	}
 	log.Println("Sent POST request")
@@ -101,9 +101,9 @@ func TestAvailabilityRequest(t *testing.T) {
 
 	// Test GET
 	igot := make([]objects.AvailabilityRequestObject, 1)
-	e = cl.GetRequest("http://"+ADDR+RFPPATH+"AcmeDSP123/1234abc/", &igot)
-	if e != nil {
-		t.Logf("Get failed, error=%s", e.Error())
+	err = cl.GetRequest("http://"+ADDR+RFPPATH+"AcmeDSP123/1234abc/", &igot)
+	if err != nil {
+		t.Logf("Get failed, error=%s", err.Error())
 		t.Fail()
 		return
 	}
@@ -119,6 +119,21 @@ func TestAvailabilityRequest(t *testing.T) {
 		return
 	}
 
+	// Test DELETE
+	err = cl.DelRequest("http://"+ADDR+RFPPATH+"AcmeDSP123/1234abc/")
+	if err != nil {
+		t.Logf("Delete failed, error=%s", err.Error())
+		t.Fail()
+		return
+	}
+	log.Println("Requested DELETE")
+	igot = make([]objects.AvailabilityRequestObject, 1)
+	err = cl.GetRequest("http://"+ADDR+RFPPATH+"AcmeDSP123/1234abc/", &igot)
+	if(err == nil || err.Code() != 404){
+		t.Log("Get following Delete failed, should have returned a 404")
+		t.Fail()
+		return
+	}
 	t.Log("Done")
 
 }
