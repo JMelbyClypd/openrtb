@@ -1,49 +1,27 @@
 package store
 
 import (
-	"github.com/clyphub/tvapi/objects"
 	"testing"
+	"tvontap/tvapi/objects"
 )
 
-var KEYS = []string{"orders","orders","buyer123","reqabcd"}
+var KEYS = []string{"orders", "orders", "buyer123", "reqabcd"}
 
-func TestMungeUnmunge(t *testing.T){
+func TestIsMatch(t *testing.T) {
 	s := NewMapStore()
-	key := Munge(KEYS)
-	t.Logf("Munge output: %s", key)
-	ukeys := Unmunge(key)
-	l := len(KEYS)
-	if(len(ukeys) != l){
-		t.Errorf("Lengths don't match - got %d, expected %d", len(ukeys), l)
-		for _,q := range ukeys {
-			t.Logf("%s",q)
-		}
-		return
-	}
-	for i := 0; i < l; i++ {
-		if(ukeys[i] != KEYS[i]){
-			t.Errorf("Key %s doesn't match expected %s", ukeys[i], KEYS[i])
-			return
-		}
-	}
-}
-
-func TestIsMatch(t *testing.T){
-	s := NewMapStore()
-	check1 := []string{"orders","orders","buyer123"}
-	if(!s.isMatch(check1,KEYS)){
+	check1 := []string{"orders", "orders", "buyer123"}
+	if !s.isMatch(check1, KEYS) {
 		t.Error("isMatch didn't return true")
 		return
 	}
-	check1 = []string{"orders","orders","buyer124"}
-	if(s.isMatch(check1,KEYS)){
+	check1 = []string{"orders", "orders", "buyer124"}
+	if s.isMatch(check1, KEYS) {
 		t.Error("isMatch didn't return false")
 		return
 	}
 }
 
-
-func TestSaveGetErase(t *testing.T){
+func TestSaveGetErase(t *testing.T) {
 	// Create the first test object
 	obj := objects.AvailabilityRequestObject{}
 	obj.RequestId = KEYS[3]
@@ -52,16 +30,16 @@ func TestSaveGetErase(t *testing.T){
 	ms := NewMapStore()
 	// Save the first object
 	e := ms.Set(KEYS, obj)
-	if(e != nil){
+	if e != nil {
 		t.Error(e)
 	}
 	// Retrieve and check the first object
-	objg,e2 := ms.Get(KEYS)
-	if(e2 != nil){
+	objg, e2 := ms.Get(KEYS)
+	if e2 != nil {
 		t.Error(e2)
 	}
 	at := objg.(objects.AvailabilityRequestObject).AdvertiserId
-	if(at != "Ducati"){
+	if at != "Ducati" {
 		t.Errorf("Wrong AdvertiserId value returned; got %s, expected %s", at, "Ducati")
 	}
 	// Create a second test object
@@ -72,23 +50,22 @@ func TestSaveGetErase(t *testing.T){
 	keys2[3] = "abc999"
 	// Save it
 	e = ms.Set(keys2, obj2)
-	if(e != nil){
+	if e != nil {
 		t.Error(e)
 	}
 	// Retrieve both with a GetAll
-	checkKeys := []string{"orders","orders","buyer123"}
+	checkKeys := []string{"orders", "orders", "buyer123"}
 	objArr, e := ms.GetAll(checkKeys)
-	if(len(objArr) != 2){
+	if len(objArr) != 2 {
 		t.Errorf("Retrieved incorrect number of objects - expected %d got %d", 2, len(objArr))
 	}
 	// Erase the objects, then check to make sure at least one is gone
 	e = ms.EraseAll(checkKeys)
-	if(e != nil){
+	if e != nil {
 		t.Error(e)
 	}
-	objg,e = ms.Get(KEYS)
-	if(objg != nil){
+	objg, e = ms.Get(KEYS)
+	if objg != nil {
 		t.Error("Erase didn't remove object")
 	}
 }
-

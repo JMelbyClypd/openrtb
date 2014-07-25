@@ -5,22 +5,21 @@ Author: J. Melby
 
 Description: Tests for apiserver package
 */
-package apiserver
-
+package impl
 
 import (
 	"log"
-"testing"
+	"testing"
 	"time"
-	"github.com/clyphub/tvapi/client"
-	"github.com/clyphub/tvapi/objects"
-	"github.com/clyphub/tvapi/server"
-	"github.com/clyphub/tvapi/store"
-	"github.com/clyphub/tvapi/util"
+	"tvontap/tvapi/client"
+	"tvontap/tvapi/objects"
+	"tvontap/tvapi/server"
+	"tvontap/tvapi/store"
+	"tvontap/tvapi/util"
 )
 
 const (
-	ADDR = "127.0.0.1:2345"
+	ADDR    = "127.0.0.1:2345"
 	CB_ADDR = "127.0.0.1:2345"
 	CB_PATH = "/responses/"
 )
@@ -30,14 +29,14 @@ type CallbackReceiver struct {
 }
 
 type CallbackProcessor struct {
-	t *testing.T
+	t        *testing.T
 	received objects.Storable
 	StoreManager
 }
 
 func NewCallbackReceiver(ts *testing.T) *CallbackReceiver {
-	x := &CallbackReceiver{APIResponder: APIResponder{path: CB_PATH, processorMap: make(map[string]RequestProcessor,4)}}
-	cp := CallbackProcessor{t:ts}
+	x := &CallbackReceiver{APIResponder: APIResponder{path: CB_PATH, processorMap: make(map[string]RequestProcessor, 4)}}
+	cp := CallbackProcessor{t: ts}
 	cp.pathKeys = util.Unmunge(CB_PATH)
 	x.AddProcessor("POST", &cp)
 	return x
@@ -51,7 +50,7 @@ func (r CallbackProcessor) Unmarshal(buffer []byte) (objects.Storable, error) {
 }
 
 func (r CallbackProcessor) ValidateRequest(pathTokens []string, queryTokens []string, rfp objects.Storable) *server.CodedError {
-	if(&rfp == nil){
+	if &rfp == nil {
 		log.Println("CallbackProcessor.received = nil")
 		r.t.Fail()
 		return server.NewError("No response received", 400)
@@ -59,10 +58,10 @@ func (r CallbackProcessor) ValidateRequest(pathTokens []string, queryTokens []st
 	return nil
 }
 
-func (r CallbackProcessor) ProcessRequest(pathTokens []string, queryTokens []string,rfp objects.Storable, responder *APIResponder) (resp []objects.Storable, e *server.CodedError) {
+func (r CallbackProcessor) ProcessRequest(pathTokens []string, queryTokens []string, rfp objects.Storable, responder *APIResponder) (resp []objects.Storable, e *server.CodedError) {
 	log.Println("Processing callback")
 	r.received = rfp
-	return nil,nil
+	return nil, nil
 }
 
 func (r CallbackReceiver) Init(srvr *server.Server) {
@@ -83,16 +82,16 @@ func TestAvailabilityRequest(t *testing.T) {
 	go testserver.Open(ADDR)
 
 	// Set up the client and test request
-	req := objects.AvailabilityRequestObject{RequestId:"1234abc",BuyerId:"AcmeDSP123",AdvertiserId:"Ronco",ResponseUrl:"http://" + CB_ADDR + CB_PATH}
+	req := objects.AvailabilityRequestObject{RequestId: "1234abc", BuyerId: "AcmeDSP123", AdvertiserId: "Ronco", ResponseUrl: "http://" + CB_ADDR + CB_PATH}
 	cl, e := client.NewClient(ADDR)
-	if(e != nil){
-		t.Fatalf("Could not open client, error=%s",e.Error())
+	if e != nil {
+		t.Fatalf("Could not open client, error=%s", e.Error())
 	}
 
 	log.Println("Client set up")
 	// Have the client do something useful
 	e = cl.PostRequest(req, RFPPATH)
-	if(e != nil){
+	if e != nil {
 		t.Logf("Transaction failed, error=%s", e.Error())
 		t.Fail()
 	}
@@ -101,25 +100,24 @@ func TestAvailabilityRequest(t *testing.T) {
 	time.Sleep(time.Duration(1) * time.Second)
 
 	// Test GET
-	igot := make([]objects.AvailabilityRequestObject,1)
-	e = cl.GetRequest("http://" + ADDR + RFPPATH + "AcmeDSP123/1234abc/", &igot)
-	if(e != nil){
+	igot := make([]objects.AvailabilityRequestObject, 1)
+	e = cl.GetRequest("http://"+ADDR+RFPPATH+"AcmeDSP123/1234abc/", &igot)
+	if e != nil {
 		t.Logf("Get failed, error=%s", e.Error())
 		t.Fail()
 		return
 	}
 	log.Println("Requested GET")
-	if(len(igot)==0){
+	if len(igot) == 0 {
 		t.Log("Get failed, got 0 responses")
 		t.Fail()
 		return
 	}
-	if(igot[0].RequestId != "1234abc"){
+	if igot[0].RequestId != "1234abc" {
 		t.Logf("Get failed, got %s", igot[0].RequestId)
 		t.Fail()
 		return
 	}
-
 
 	t.Log("Done")
 

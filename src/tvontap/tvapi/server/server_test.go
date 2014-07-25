@@ -12,8 +12,8 @@ import (
 	"log"
 	"net/http"
 	"testing"
-	"github.com/clyphub/tvapi/store"
-	"github.com/clyphub/tvapi/testutil"
+	"tvontap/tvapi/store"
+	"tvontap/tvapi/testutil"
 )
 
 const (
@@ -21,8 +21,8 @@ const (
 )
 
 /*****************************************
-	Test the test dispatchers
- */
+Test the test dispatchers
+*/
 
 func TestDispatcherGet(t *testing.T) {
 	var code int
@@ -62,7 +62,7 @@ func TestServerGet(t *testing.T) {
 	s.Init()
 	defer s.Close()
 
-	go testutil.DoGet(t, ADDR, "/",200, MSG,
+	go testutil.DoGet(t, ADDR, "/", 200, MSG,
 		func(r string, v string) bool {
 			if r != v {
 				t.Fail()
@@ -80,7 +80,6 @@ func TestServerGet(t *testing.T) {
 
 }
 
-
 type Looper struct {
 	BaseResponder
 }
@@ -95,7 +94,7 @@ func (r *Looper) Handle(req *http.Request) (int, []byte) {
 	log.Println("Looper.Handle")
 	buffer, e := ioutil.ReadAll(req.Body)
 	defer req.Body.Close()
-	if(e != nil){
+	if e != nil {
 		return http.StatusBadRequest, nil
 	}
 	return http.StatusOK, buffer
@@ -107,7 +106,7 @@ func TestServerPost(t *testing.T) {
 	s.AddResponder(&Looper{})
 	defer s.Close()
 
-	go testutil.DoPost(t, ADDR, "/loop","test","application/text", 200, "test",
+	go testutil.DoPost(t, ADDR, "/loop", "test", "application/text", 200, "test",
 		func(r string, v string) bool {
 			if r != v {
 				t.Fail()
@@ -131,7 +130,7 @@ func TestServerPut(t *testing.T) {
 	s.AddResponder(&Looper{})
 	defer s.Close()
 
-	go testutil.DoPut(t, ADDR, "/loop","test","application/text", 200, "test",
+	go testutil.DoPut(t, ADDR, "/loop", "test", "application/text", 200, "test",
 		func(r string, v string) bool {
 			if r != v {
 				t.Fail()

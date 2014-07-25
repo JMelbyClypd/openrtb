@@ -4,15 +4,15 @@ Copyright 2014 clypd, inc.  All rights reserved.
 Author: J. Melby
 
 Description: Implementation for Programmatic TV Order API
- */
-package apiserver
+*/
+package impl
 
 import (
 	"log"
-	"github.com/clyphub/tvapi/objects"
-	"github.com/clyphub/tvapi/server"
-	"github.com/clyphub/tvapi/store"
-	"github.com/clyphub/tvapi/util"
+	"tvontap/tvapi/objects"
+	"tvontap/tvapi/server"
+	"tvontap/tvapi/store"
+	"tvontap/tvapi/util"
 )
 
 var ORDERPATH = "/orders/order"
@@ -26,8 +26,8 @@ type OrderAPIProcessor struct {
 }
 
 func NewOrderAPIResponder(st store.ObjectStore) *OrderAPIResponder {
-	x := &OrderAPIResponder{APIResponder{path: ORDERPATH, processorMap: make(map[string]RequestProcessor,4)}}
-	x.AddProcessor("POST", &OrderAPIProcessor{StoreManager{store:st, pathKeys:util.Unmunge(ORDERPATH)}})
+	x := &OrderAPIResponder{APIResponder{path: ORDERPATH, processorMap: make(map[string]RequestProcessor, 4)}}
+	x.AddProcessor("POST", &OrderAPIProcessor{StoreManager{store: st, pathKeys: util.Unmunge(ORDERPATH)}})
 	return x
 }
 
@@ -41,9 +41,9 @@ func (r OrderAPIProcessor) ValidateRequest(pathTokens []string, queryTokens []st
 	return nil
 }
 
-func (r OrderAPIProcessor) ProcessRequest(pathTokens []string,queryTokens []string, order objects.Storable, responder *APIResponder) ([]objects.Storable, *server.CodedError){
+func (r OrderAPIProcessor) ProcessRequest(pathTokens []string, queryTokens []string, order objects.Storable, responder *APIResponder) ([]objects.Storable, *server.CodedError) {
 	log.Println("processRequest")
-	respObjs := make([]objects.Storable,1)
+	respObjs := make([]objects.Storable, 1)
 	respObjs[0] = &objects.OrderAcceptanceObject{}
-	return respObjs,nil
+	return respObjs, nil
 }

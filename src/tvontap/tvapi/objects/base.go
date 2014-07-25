@@ -20,25 +20,25 @@ type Objectable interface {
 	GetObject() interface{}
 }
 
-func Unmarshal(ref interface{}, buffer []byte) error{
-	if(ref == nil){
+func Unmarshal(ref interface{}, buffer []byte) error {
+	if ref == nil {
 		log.Println("Attempting to unmarshal into an empty pointer")
 	}
 	log.Printf("Unmarshalling json\n%s\n into object of type %T", buffer, ref)
 	e := json.Unmarshal(buffer, ref)
 	log.Printf("Unmarshalled object with type %T", ref)
-	if (e != nil) {
-		log.Printf("Error unmarshalling, error=%s",e.Error())
+	if e != nil {
+		log.Printf("Error unmarshalling, error=%s", e.Error())
 		return e
 	}
 	return nil
 }
 
-func Marshal(obj interface{}) ([]byte, error){
+func Marshal(obj interface{}) ([]byte, error) {
 	// Marshal the results into the response body
-	buffer, e := json.MarshalIndent(obj,"","    ")
-	if (e != nil) {
-		log.Printf("Error marshalling object body (%s) error=%s",buffer,e.Error())
+	buffer, e := json.MarshalIndent(obj, "", "    ")
+	if e != nil {
+		log.Printf("Error marshalling object body (%s) error=%s", buffer, e.Error())
 		return nil, e
 	}
 	return buffer, nil

@@ -4,25 +4,25 @@ Copyright 2014 clypd, inc.  All rights reserved.
 Author: J. Melby
 
 Description: Lightweight container for Programmatic TV API service
- */
+*/
 package server
 
 import (
-	"github.com/clyphub/tvapi/store"
 	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
+	"tvontap/tvapi/store"
 )
 
 const (
-	MSG = "Hey dere, dis is Hibbing callin\n"
+	MSG      = "Hey dere, dis is Hibbing callin\n"
 	BYE_PATH = "/bye/"
-	BYE_MSG = "Buh-bye"
+	BYE_MSG  = "Buh-bye"
 )
 
 type CodedError struct {
-	msg string
+	msg    string
 	status int
 }
 
@@ -41,11 +41,11 @@ func NewError(m string, s int) *CodedError {
 type Server struct {
 	Router
 	listener net.Listener
-	store store.ObjectStore
+	store    store.ObjectStore
 }
 
 func NewServer(st store.ObjectStore) *Server {
-	s:= Server{}
+	s := Server{}
 	s.root = newNode("/")
 	s.badMethodHandler = BadMethodHandler{}
 	s.store = st
@@ -77,7 +77,7 @@ func (s Server) Open(laddr string) {
 	log.Println("Server opening")
 	var err error
 	s.listener, err = net.Listen("tcp", laddr)
-	if (err != nil) {
+	if err != nil {
 		log.Fatal("Listen: ", err)
 	}
 	http.Serve(s.listener, nil)
@@ -85,12 +85,12 @@ func (s Server) Open(laddr string) {
 }
 
 func (s Server) Close() {
-	if (s.listener != nil) {
+	if s.listener != nil {
 		s.listener.Close()
 	}
 }
 
-func (srvr Server) AddResponder(responder Responder){
+func (srvr Server) AddResponder(responder Responder) {
 	responder.Init(&srvr)
 }
 
@@ -103,11 +103,11 @@ func (s Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	var body []byte
 
 	sink := s.resolveHandler(method, path)
-	status,body = sink.Handle(req)
+	status, body = sink.Handle(req)
 
 	log.Printf("ServeHTTP: Writing response with status %d\n", status)
 	err := s.writeResponse(w, req, status, body)
-	if (err != nil) {
+	if err != nil {
 		log.Println("Error while writing response: " + err.Error())
 	}
 	log.Println("ServeHTTP returning")
@@ -115,14 +115,13 @@ func (s Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 func (s Server) writeResponse(w http.ResponseWriter, req *http.Request, status int, body []byte) error {
 	w.WriteHeader(status)
-	if(len(body)>0){
+	if len(body) > 0 {
 		w.Write(body)
 	}
 	return nil
 }
 
 type BaseResponder struct {
-
 }
 
 func (r BaseResponder) Handle(req *http.Request) (int, []byte) {
@@ -130,11 +129,11 @@ func (r BaseResponder) Handle(req *http.Request) (int, []byte) {
 	return http.StatusOK, nil
 }
 
-func (r BaseResponder) ReadBody(req *http.Request) ([]byte, error){
+func (r BaseResponder) ReadBody(req *http.Request) ([]byte, error) {
 	buffer, e := ioutil.ReadAll(req.Body)
 	defer req.Body.Close()
-	if (e != nil) {
-		log.Printf("Error reading request body, error=%s",e.Error())
+	if e != nil {
+		log.Printf("Error reading request body, error=%s", e.Error())
 		return nil, e
 	}
 	return buffer, nil
@@ -159,7 +158,6 @@ func (r MsgResponder) Handle(req *http.Request) (int, []byte) {
 	return http.StatusOK, []byte(r.s)
 }
 
-
 type Downer struct {
 	server *Server
 	BaseResponder
@@ -175,6 +173,3 @@ func (r Downer) Handle(req *http.Request) (int, []byte) {
 	r.server.Close()
 	return http.StatusOK, []byte(BYE_MSG)
 }
-
-
-

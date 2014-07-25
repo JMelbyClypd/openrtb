@@ -5,14 +5,14 @@ Author: J. Melby
 
 Description: main package for Programmatic TV API test service
 
- */
+*/
 package main
 
 import (
 	"flag"
-	"github.com/clyphub/tvapi/apiserver/apiserver"
-	"github.com/clyphub/tvapi/server"
-	"github.com/clyphub/tvapi/store"
+	"tvontap/tvapi/apiserver/impl"
+	"tvontap/tvapi/server"
+	"tvontap/tvapi/store"
 )
 
 var (
@@ -25,10 +25,10 @@ func init() {
 }
 
 func main() {
-	store := store.NewMapStore()
-	s := server.NewServer(store)
+	st := store.NewMapStore()
+	s := server.NewServer(st)
 	s.Init()
-	s.AddResponder(apiserver.NewOrderAPIResponder(store))
-	s.AddResponder(apiserver.NewInventoryRequestResponder(store))
+	s.AddResponder(impl.NewOrderAPIResponder(st))
+	s.AddResponder(impl.NewInventoryRequestResponder(st))
 	s.Open(address)
 }
