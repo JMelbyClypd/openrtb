@@ -5,7 +5,7 @@ Author: J. Melby
 
 Description: Test utilities
 */
-package testutil
+package server
 
 import (
 	"io/ioutil"
@@ -19,9 +19,10 @@ Helper functions
 */
 
 func do(t *testing.T, mthd string, addr string, path string, body string, bodyType string, expectedCode int,
-	expected string, checker func(ref string, val string) bool, stopper func()) {
+	expected string, checker func(ref string, val string) bool) {
 	url := "http://" + addr + path
 
+	mthd = strings.ToUpper(mthd)
 	req, err := http.NewRequest(mthd, url, strings.NewReader(body))
 
 	if len(bodyType) != 0 {
@@ -31,16 +32,14 @@ func do(t *testing.T, mthd string, addr string, path string, body string, bodyTy
 	if err != nil {
 		t.Log("Could not create request")
 		t.Fail()
-		stopper()
 		return
 	}
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		t.Log("Could not send request")
+		t.Logf("Could not send request to %s: %s", url, err.Error())
 		t.Fail()
-		stopper()
 		return
 	}
 
@@ -48,16 +47,15 @@ func do(t *testing.T, mthd string, addr string, path string, body string, bodyTy
 	if status != expectedCode {
 		t.Logf("Incorrect response status: %d", status)
 		t.Fail()
-		stopper()
 		return
 	}
 
 	var buffer []byte
 	buffer, err = ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
 	if err != nil {
 		t.Log("Couldn't read body")
 		t.Fail()
-		stopper()
 		return
 	}
 	if len(buffer) > 0 {
@@ -76,21 +74,20 @@ func do(t *testing.T, mthd string, addr string, path string, body string, bodyTy
 		t.Log("OK")
 	}
 
-	stopper()
 }
 
-func DoGet(t *testing.T, addr string, path string, expectedCode int, expected string, checker func(ref string, val string) bool, stopper func()) {
-	do(t, "GET", addr, path, "", "", expectedCode, expected, checker, stopper)
+func DoGet(t *testing.T, addr string, path string, expectedCode int, expected string, checker func(ref string, val string) bool) {
+	do(t, "GET", addr, path, "", "", expectedCode, expected, checker)
 }
 
-func DoPost(t *testing.T, addr string, path string, body string, bodyType string, expectedCode int, expected string, checker func(ref string, val string) bool, stopper func()) {
-	do(t, "POST", addr, path, body, bodyType, expectedCode, expected, checker, stopper)
+func DoPost(t *testing.T, addr string, path string, body string, bodyType string, expectedCode int, expected string, checker func(ref string, val string) bool) {
+	do(t, "POST", addr, path, body, bodyType, expectedCode, expected, checker)
 }
 
-func DoPut(t *testing.T, addr string, path string, body string, bodyType string, expectedCode int, expected string, checker func(ref string, val string) bool, stopper func()) {
-	do(t, "PUT", addr, path, body, bodyType, expectedCode, expected, checker, stopper)
+func DoPut(t *testing.T, addr string, path string, body string, bodyType string, expectedCode int, expected string, checker func(ref string, val string) bool) {
+	do(t, "PUT", addr, path, body, bodyType, expectedCode, expected, checker)
 }
 
-func DoDelete(t *testing.T, addr string, path string, expectedCode int, stopper func()) {
-	do(t, "DELETE", addr, path, "", "", expectedCode, "", func(ref string, val string) bool { return true }, stopper)
+func DoDelete(t *testing.T, addr string, path string, expectedCode int) {
+	do(t, "DELETE", addr, path, "", "", expectedCode, "", func(ref string, val string) bool { return true })
 }

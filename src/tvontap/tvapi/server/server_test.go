@@ -11,20 +11,22 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strconv"
 	"testing"
+	"time"
 	"tvontap/tvapi/store"
-	"tvontap/tvapi/testutil"
 )
 
 const (
-	ADDR = "127.0.0.1:2345"
+	ADDR = "localhost"
+	PORT = 2345
 )
 
 /*****************************************
 Test the test dispatchers
 */
 
-func TestDispatcherGet(t *testing.T) {
+func _TestDispatcherGet(t *testing.T) {
 	var code int
 	var buffer []byte
 	obj := new(BaseResponder)
@@ -57,12 +59,35 @@ func TestMsgResponderGet(t *testing.T) {
 	}
 }
 
+func makeAddress(host string, port int) string {
+	return host + ":" + strconv.Itoa(port)
+}
+
+type Messager struct {
+	BaseResponder
+}
+
+func (r *Messager) Init(srvr *Server) {
+	srvr.Register("GET", "/msg/", r)
+}
+
+func (r *Messager) Handle(req *http.Request) (int, []byte) {
+	log.Println("Messager.Handle")
+	return http.StatusOK, []byte(MSG)
+}
+
 func TestServerGet(t *testing.T) {
 	s := NewServer(store.NewMapStore())
 	s.Init()
+	s.AddResponder(&Messager{})
 	defer s.Close()
 
-	go testutil.DoGet(t, ADDR, "/", 200, MSG,
+	a := makeAddress(ADDR, PORT+4)
+	go s.Open(a)
+
+	time.Sleep(time.Duration(1) * time.Second)
+	t.Log("Sending GET")
+	DoGet(t, a, "/msg/", 200, MSG,
 		func(r string, v string) bool {
 			if r != v {
 				t.Fail()
@@ -70,14 +95,9 @@ func TestServerGet(t *testing.T) {
 				return false
 			}
 			return true
-		},
-		func() {
-			s.Close()
 		})
 
-	s.Open(ADDR)
 	t.Log("Done")
-
 }
 
 type Looper struct {
@@ -106,7 +126,11 @@ func TestServerPost(t *testing.T) {
 	s.AddResponder(&Looper{})
 	defer s.Close()
 
-	go testutil.DoPost(t, ADDR, "/loop", "test", "application/text", 200, "test",
+	a := makeAddress(ADDR, PORT+1)
+	go s.Open(a)
+
+	t.Log("Sending POST")
+	DoPost(t, a, "/loop", "test", "application/text", 200, "test",
 		func(r string, v string) bool {
 			if r != v {
 				t.Fail()
@@ -114,14 +138,9 @@ func TestServerPost(t *testing.T) {
 				return false
 			}
 			return true
-		},
-		func() {
-			s.Close()
 		})
 
-	s.Open(ADDR)
 	t.Log("Done")
-
 }
 
 func TestServerPut(t *testing.T) {
@@ -130,7 +149,10 @@ func TestServerPut(t *testing.T) {
 	s.AddResponder(&Looper{})
 	defer s.Close()
 
-	go testutil.DoPut(t, ADDR, "/loop", "test", "application/text", 200, "test",
+	a := makeAddress(ADDR, PORT+2)
+	go s.Open(a)
+
+	DoPut(t, a, "/loop", "test", "application/text", 200, "test",
 		func(r string, v string) bool {
 			if r != v {
 				t.Fail()
@@ -138,12 +160,9 @@ func TestServerPut(t *testing.T) {
 				return false
 			}
 			return true
-		},
-		func() {
-			s.Close()
 		})
 
-	s.Open(ADDR)
+
 	t.Log("Done")
 
 }
@@ -169,12 +188,12 @@ func TestServerDelete(t *testing.T) {
 	s.AddResponder(&Deleter{})
 	defer s.Close()
 
-	go testutil.DoDelete(t, ADDR, "/obj", 200,
-		func() {
-			s.Close()
-		})
+	a := makeAddress(ADDR, PORT+3)
 
-	s.Open(ADDR)
+	go s.Open(a)
+
+	DoDelete(t, a, "/obj", 200)
+
 	t.Log("Done")
 
 }
