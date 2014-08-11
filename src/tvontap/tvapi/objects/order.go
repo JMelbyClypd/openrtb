@@ -80,7 +80,7 @@ type OrderObject struct {
 	DealId       string            `json:"dealId,omitempty"`
 	Expiration   time.Time         `json:"expiration,omitempty"`
 	OrderLines   []OrderlineObject `json:"orderLines"`
-	ResponseUrl  string          `json:"responseUrl,omitempty"`
+	ResponseUrl  string            `json:"responseUrl,omitempty"`
 	Extension    ExtensionObject   `json:"ext,omitempty"`
 }
 

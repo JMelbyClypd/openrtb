@@ -66,12 +66,12 @@ func (r CallbackReceiver) Init(srvr *server.Server) {
 	srvr.Register("POST", CB_PATH, r)
 }
 
-func setUpServer() (*server.Server,store.ObjectStore){
+func setUpServer() (*server.Server, store.ObjectStore) {
 	log.Println("Setting up test store and test server")
 	teststore := store.NewMapStore()
 	testserver := server.NewServer(teststore)
 	testserver.Init()
-	return testserver,teststore
+	return testserver, teststore
 }
 
 func setUpClient(t *testing.T, addr string) *client.Client {
@@ -93,7 +93,7 @@ func sendPostRequest(t *testing.T, cl *client.Client, path string, req objects.S
 
 func TestAvailabilityRequest(t *testing.T) {
 	// Set up test server
-	testserver,teststore := setUpServer()
+	testserver, teststore := setUpServer()
 	testserver.AddResponder(NewInventoryRequestResponder(teststore))
 	cbr := NewCallbackReceiver(t)
 	testserver.AddResponder(cbr)
@@ -154,7 +154,7 @@ func TestAvailabilityRequest(t *testing.T) {
 
 func TestOrderRequest(t *testing.T) {
 	// Set up test server
-	testserver,teststore := setUpServer()
+	testserver, teststore := setUpServer()
 	testserver.AddResponder(NewOrderAPIResponder(teststore))
 	cbr := NewCallbackReceiver(t)
 	testserver.AddResponder(cbr)

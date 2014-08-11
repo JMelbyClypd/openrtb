@@ -186,7 +186,7 @@ type AckObject struct {
 	OrderId     string          `json:"orderId"`
 	BuyerId     string          `json:"buyerId"`
 	Version     int             `json:"version"`
-	IsCompleted bool            `json:"isCompleted`
+	IsCompleted bool            `json:"isCompleted"`
 	Errors      []string        `json:"errors"`
 	Operation   int             `json:"operation"`
 	Extension   ExtensionObject `json:"ext,omitempty"`
