@@ -38,7 +38,6 @@ func NewErrorf(format string, status int, a ...interface{}) *CodedError {
 	return NewError(fmt.Sprintf(format, a...), status)
 }
 
-
 type Storable interface {
 	GetKey() string
 }

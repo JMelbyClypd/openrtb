@@ -19,8 +19,6 @@ import (
 )
 
 const (
-	ADDR    = "127.0.0.1:2345"
-	CB_ADDR = "127.0.0.1:2345"
 	CB_PATH = "/responses/"
 )
 
@@ -68,40 +66,57 @@ func (r CallbackReceiver) Init(srvr *server.Server) {
 	srvr.Register("POST", CB_PATH, r)
 }
 
-func TestAvailabilityRequest(t *testing.T) {
-	// Set up test server
+func setUpServer() (*server.Server,store.ObjectStore){
 	log.Println("Setting up test store and test server")
 	teststore := store.NewMapStore()
 	testserver := server.NewServer(teststore)
 	testserver.Init()
+	return testserver,teststore
+}
+
+func setUpClient(t *testing.T, addr string) *client.Client {
+	cl, ex := client.NewClient(addr)
+	if ex != nil {
+		t.Fatalf("Could not open client, error=%s", ex.Error())
+	}
+	log.Println("Client set up")
+	return cl
+}
+
+func sendPostRequest(t *testing.T, cl *client.Client, path string, req objects.Storable) {
+	err := cl.PostRequest(req, path)
+	if err != nil {
+		t.Fatalf("POST request failed, error=%s", err.Error())
+	}
+	log.Println("Sent POST request")
+}
+
+func TestAvailabilityRequest(t *testing.T) {
+	// Set up test server
+	testserver,teststore := setUpServer()
 	testserver.AddResponder(NewInventoryRequestResponder(teststore))
 	cbr := NewCallbackReceiver(t)
 	testserver.AddResponder(cbr)
 	defer testserver.Close()
 	log.Println("Setup complete, opening server")
+	const ADDR = "127.0.0.1:2345"
 	go testserver.Open(ADDR)
 
 	// Set up the client and test request
-	req := objects.AvailabilityRequestObject{RequestId: "1234abc", BuyerId: "AcmeDSP123", AdvertiserId: "Ronco", ResponseUrl: "http://" + CB_ADDR + CB_PATH}
-	cl, ex := client.NewClient(ADDR)
-	if ex != nil {
-		t.Fatalf("Could not open client, error=%s", ex.Error())
-	}
+	req := objects.AvailabilityRequestObject{RequestId: "1234abc", BuyerId: "AcmeDSP123", AdvertiserId: "Ronco", ResponseUrl: ADDR + CB_PATH}
 
-	log.Println("Client set up")
+	cl := setUpClient(t, ADDR)
+
 	// Have the client do something useful
-	err := cl.PostRequest(req, RFPPATH)
-	if err != nil {
-		t.Logf("Transaction failed, error=%s", err.Error())
-		t.Fail()
-	}
-	log.Println("Sent POST request")
+	sendPostRequest(t, cl, RFPPATH, req)
+
 	// This is an utter hack
 	time.Sleep(time.Duration(1) * time.Second)
 
 	// Test GET
-	igot := make([]objects.AvailabilityRequestObject, 1)
-	err = cl.GetRequest("http://"+ADDR+RFPPATH+"AcmeDSP123/1234abc/", &igot)
+	igot := make([]objects.AvailabilityRequestObject, 0)
+
+	err := cl.GetRequest("http://"+ADDR+RFPPATH+"AcmeDSP123/1234abc/", &igot)
 	if err != nil {
 		t.Logf("Get failed, error=%s", err.Error())
 		t.Fail()
@@ -120,16 +135,77 @@ func TestAvailabilityRequest(t *testing.T) {
 	}
 
 	// Test DELETE
-	err = cl.DelRequest("http://"+ADDR+RFPPATH+"AcmeDSP123/1234abc/")
+	err = cl.DelRequest("http://" + ADDR + RFPPATH + "AcmeDSP123/1234abc/")
 	if err != nil {
 		t.Logf("Delete failed, error=%s", err.Error())
 		t.Fail()
 		return
 	}
 	log.Println("Requested DELETE")
-	igot = make([]objects.AvailabilityRequestObject, 1)
+	igot = make([]objects.AvailabilityRequestObject, 0)
 	err = cl.GetRequest("http://"+ADDR+RFPPATH+"AcmeDSP123/1234abc/", &igot)
-	if(err == nil || err.Code() != 404){
+	if err == nil || err.Code() != 404 {
+		t.Log("Get following Delete failed, should have returned a 404")
+		t.Fail()
+		return
+	}
+	t.Log("Done")
+}
+
+func TestOrderRequest(t *testing.T) {
+	// Set up test server
+	testserver,teststore := setUpServer()
+	testserver.AddResponder(NewOrderAPIResponder(teststore))
+	cbr := NewCallbackReceiver(t)
+	testserver.AddResponder(cbr)
+	defer testserver.Close()
+	log.Println("Setup complete, opening server")
+	const ADDR = "127.0.0.1:2346"
+	go testserver.Open(ADDR)
+
+	// Set up the client and test request
+	req := objects.OrderObject{RequestId: "1234abc", BuyerId: "AcmeDSP123", AdvertiserId: "Ronco", ResponseUrl: "http://" + ADDR + CB_PATH}
+
+	cl := setUpClient(t, ADDR)
+
+	// Have the client do something useful
+	sendPostRequest(t, cl, ORDERPATH, req)
+
+	// This is an utter hack
+	time.Sleep(time.Duration(1) * time.Second)
+
+	// Test GET
+	igot := make([]objects.OrderObject, 0)
+
+	err := cl.GetRequest("http://"+ADDR+ORDERPATH+"AcmeDSP123/1234abc/", &igot)
+	if err != nil {
+		t.Logf("Get failed, error=%s", err.Error())
+		t.Fail()
+		return
+	}
+	log.Println("Requested GET")
+	if len(igot) == 0 {
+		t.Log("Get failed, got 0 responses")
+		t.Fail()
+		return
+	}
+	if igot[0].RequestId != "1234abc" {
+		t.Logf("Get failed, got %s", igot[0].RequestId)
+		t.Fail()
+		return
+	}
+
+	// Test DELETE
+	err = cl.DelRequest("http://" + ADDR + ORDERPATH + "AcmeDSP123/1234abc/")
+	if err != nil {
+		t.Logf("Delete failed, error=%s", err.Error())
+		t.Fail()
+		return
+	}
+	log.Println("Requested DELETE")
+	igot = make([]objects.OrderObject, 0)
+	err = cl.GetRequest("http://"+ADDR+ORDERPATH+"AcmeDSP123/1234abc/", &igot)
+	if err == nil || err.Code() != 404 {
 		t.Log("Get following Delete failed, should have returned a 404")
 		t.Fail()
 		return

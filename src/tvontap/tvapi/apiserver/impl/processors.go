@@ -36,33 +36,33 @@ func (ggp GenericGetProcessor) ProcessRequest(pathTokens []string, queryTokens [
 	log.Printf("Path parsed to %d tokens, ggp path has %d tokens", lenp, len(ggp.pathKeys))
 	switch lenp - len(ggp.pathKeys) {
 	case 0:
-	{ // Addressed to general resource
-		log.Println("GGP Get: general resource")
-		return nil, objects.NewError("Not Found", 404)
-	}
-	case 1:
-	{ // Addressed to buyerId
-		log.Printf("GGP Get: all buyer %s orders", pathTokens[lenp-1])
-		ret, err := ggp.GetAllByBuyer(pathTokens[lenp-1])
-		if err != nil {
-			return nil, objects.NewError(err.Error(), 500)
-		}
-		return ret, nil
-	}
-	case 2:
-	{ // Addressed to specific item
-		log.Printf("GGP Get: specific order %s from buyer %s", pathTokens[lenp-1], pathTokens[lenp-2])
-		ret, err := ggp.GetObject(pathTokens[lenp-2], pathTokens[lenp-1])
-		if err != nil {
-			return nil, objects.NewError(err.Error(), 500)
-		}
-		if ret == nil {
+		{ // Addressed to general resource
+			log.Println("GGP Get: general resource")
 			return nil, objects.NewError("Not Found", 404)
 		}
-		retArr := make([]objects.Storable, 1)
-		retArr[0] = ret
-		return retArr, nil
-	}
+	case 1:
+		{ // Addressed to buyerId
+			log.Printf("GGP Get: all buyer %s orders", pathTokens[lenp-1])
+			ret, err := ggp.GetAllByBuyer(pathTokens[lenp-1])
+			if err != nil {
+				return nil, objects.NewError(err.Error(), 500)
+			}
+			return ret, nil
+		}
+	case 2:
+		{ // Addressed to specific item
+			log.Printf("GGP Get: specific order %s from buyer %s", pathTokens[lenp-1], pathTokens[lenp-2])
+			ret, err := ggp.GetObject(pathTokens[lenp-2], pathTokens[lenp-1])
+			if err != nil {
+				return nil, objects.NewError(err.Error(), 500)
+			}
+			if ret == nil {
+				return nil, objects.NewError("Not Found", 404)
+			}
+			retArr := make([]objects.Storable, 1)
+			retArr[0] = ret
+			return retArr, nil
+		}
 	}
 
 	return nil, objects.NewError("Problem processing GET request - too many path tokens", 400)
@@ -92,30 +92,30 @@ func (gdp GenericDeleteProcessor) ProcessRequest(pathTokens []string, queryToken
 	log.Printf("Path parsed to %d tokens, ggp path has %d tokens", lenp, len(gdp.pathKeys))
 	switch lenp - len(gdp.pathKeys) {
 	case 0:
-	{ // Addressed to general resource
-		log.Println("GDP DELETE: general resource")
-		return nil, objects.NewError("Not Found", 404)
-	}
+		{ // Addressed to general resource
+			log.Println("GDP DELETE: general resource")
+			return nil, objects.NewError("Not Found", 404)
+		}
 	case 1:
-	{ // Addressed to buyerId
-		log.Printf("GDP Delete: all buyer %s orders", pathTokens[lenp-1])
-		err := gdp.DeleteAllByBuyer(pathTokens[lenp-1])
-		if err != nil {
-			return nil, objects.NewError(err.Error(), 500)
+		{ // Addressed to buyerId
+			log.Printf("GDP Delete: all buyer %s orders", pathTokens[lenp-1])
+			err := gdp.DeleteAllByBuyer(pathTokens[lenp-1])
+			if err != nil {
+				return nil, objects.NewError(err.Error(), 500)
+			}
+			return nil, nil
 		}
-		return nil, nil
-	}
 	case 2:
-	{ // Addressed to specific item
-		log.Printf("GDP Delete: specific order %s from buyer %s", pathTokens[lenp-1], pathTokens[lenp-2])
-		err := gdp.DeleteObject(pathTokens[lenp-2], pathTokens[lenp-1])
-		if err != nil {
-			return nil, objects.NewError(err.Error(), 500)
-		}
+		{ // Addressed to specific item
+			log.Printf("GDP Delete: specific order %s from buyer %s", pathTokens[lenp-1], pathTokens[lenp-2])
+			err := gdp.DeleteObject(pathTokens[lenp-2], pathTokens[lenp-1])
+			if err != nil {
+				return nil, objects.NewError(err.Error(), 500)
+			}
 
-		retArr := make([]objects.Storable, 0)
-		return retArr, nil
-	}
+			retArr := make([]objects.Storable, 0)
+			return retArr, nil
+		}
 	}
 
 	return nil, objects.NewError("Problem processing DELETE request - too many path tokens", 400)

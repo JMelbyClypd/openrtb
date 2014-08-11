@@ -98,7 +98,7 @@ func (c Client) GetRequest(url string, ref interface{}) *objects.CodedError {
 		}
 		log.Printf("GET response body read, len=%d", len(buffer))
 		err2 = objects.Unmarshal(ref, buffer)
-		if(err2 != nil){
+		if err2 != nil {
 			return objects.FromError(err2, 500)
 		}
 		return nil
